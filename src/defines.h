@@ -892,4 +892,6 @@ enum
  */
 #define MAX_RVALS 4
 
+#define USE_STATS
+
 #endif /* !INCLUDED_DEFINES_H */
