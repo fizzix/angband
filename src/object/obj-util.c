@@ -2898,14 +2898,14 @@ extern s16b inven_carry(struct player *p, struct object *o)
 	{
 		if (player_has(PF_KNOW_MUSHROOM) && j_ptr->tval == TV_FOOD)
 		{
-			do_ident_item(i, j_ptr);
+			do_ident_item(i, j_ptr, TRUE);
 			msg("Mushrooms for breakfast!");
 		}
 
 		if (player_has(PF_KNOW_ZAPPER) &&
 			(j_ptr->tval == TV_WAND || j_ptr->tval == TV_STAFF))
 		{
-			do_ident_item(i, j_ptr);
+			do_ident_item(i, j_ptr, TRUE);
 		}
 	}
 
