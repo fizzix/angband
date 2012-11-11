@@ -1757,6 +1757,13 @@ void do_cmd_debug(void)
 			do_cmd_rerate();
 			break;
 		}
+        
+        /* Hit all monsters in LOS */
+        case 'H':
+        {
+            dispel_monsters(10000);
+            break;
+        }
 
 		/* Identify */
 		case 'i':
