@@ -798,6 +798,13 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 			if (!ident_spell()) return FALSE;
 			return TRUE;
 		}
+        
+        case EF_IDENTIFY2:
+        {
+            *ident = TRUE;
+            if (!mass_identify()) return FALSE;
+            return TRUE;
+        }
 
 		case EF_REMOVE_CURSE:
 		{

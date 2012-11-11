@@ -310,7 +310,7 @@ void identify_pack(void)
 		if (object_is_known(o_ptr)) continue;
 
 		/* Identify it */
-		do_ident_item(i, o_ptr);
+		do_ident_item(i, o_ptr, TRUE);
 
 		/* repeat with same slot */
 		i--;
@@ -1524,13 +1524,57 @@ bool ident_spell(void)
 
 
 	/* Identify the object */
-	do_ident_item(item, o_ptr);
+	do_ident_item(item, o_ptr, TRUE);
 
 
 	/* Something happened */
 	return (TRUE);
 }
 
+/* 
+ * Mass identify all objects in line of sight
+ */
+bool mass_identify(void)
+{
+    int item, y, x;
+    bool flag = FALSE;
+    object_type *o_ptr;
+    
+    /* Identify everything in the pack */
+    identify_pack();
+    
+    /* Go through the object list */
+    for (item = 1; item <= o_cnt; item++){
+   
+        o_ptr = object_byid(item);
+        
+        /* Skip "dead" objects */
+		if (!o_ptr->kind) continue;
+   
+        /* Skip already known objects */
+        if (object_is_known(o_ptr)) continue;
+        
+        /* Get location */
+        y = o_ptr->iy;
+        x = o_ptr->ix;
+        
+        /* Ignore items that the player cannot see */
+        if (!player_can_see_bold(y, x)) continue;
+        
+        /* Identify the item */
+        do_ident_item(-1, o_ptr, FALSE);
+        
+        /* One item was identified */
+        flag = TRUE;
+        
+        /* Notify for artifacts */
+        if (o_ptr->artifact){
+            msg("%s is revealed", o_ptr->artifact->name);
+        }
+    }
+    
+    return(flag);
+}
 
 
 /*
@@ -3300,7 +3344,7 @@ void ring_of_power(int dir)
  * Any negative value assigned to "item" can be used for specifying an object
  * on the floor.
  */
-void do_ident_item(int item, object_type *o_ptr)
+void do_ident_item(int item, object_type *o_ptr, bool show_message)
 {
 	char o_name[80];
 
@@ -3330,6 +3374,9 @@ void do_ident_item(int item, object_type *o_ptr)
 	/* Description */
 	object_desc(o_name, sizeof(o_name), o_ptr, ODESC_PREFIX | ODESC_FULL);
 
+    /* Don't show a message */
+    if (!show_message) return;
+    
 	/* Determine the message type. */
 	/* CC: we need to think more carefully about how we define "bad" with
 	 * multiple pvals - currently using "all nonzero pvals < 0" */

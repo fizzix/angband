@@ -106,9 +106,10 @@ I:90:1:4
 D:Attempts to put to sleep a single monster.
 D:  Uniques and monsters that resist confusion are not affected.
 
-N:15:Wonder
-I:90:1:8
-D:Invokes a random spell effect.
+N:15:Mass Identify
+I:90:3:6
+D:Identifies all items that you can see, including those in your pack,
+D: and those you are wearing.
 
 N:16:Frost Bolt
 I:90:1:7
@@ -561,7 +562,7 @@ D: current hit points of the monster and many of its characteristics
 D: and abilities (excluding its melee, spellcasting, and breath attacks).
 
 N:99:Clairvoyance
-I:91:5:4
+I:91:5:5
 D:Lights up, maps out, and detects all objects on the complete current
 D: dungeon level.
 
@@ -682,3 +683,8 @@ D:The current level will be discarded and a new dungeon level (on the
 D: same dungeon depth) will be generated.  This has exactly the same
 D: side effects as leaving and re-entering the level through a stair,
 D: except that you won't start on a square with a stair.
+
+N:122:Mass Identify
+I:91:5:4
+D:Identifies all items that you can see, including those in your pack,
+D: and those you are wearing.

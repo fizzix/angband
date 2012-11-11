@@ -43,7 +43,7 @@
 #define SPELL_LIGHTNING_BOLT            12
 #define SPELL_CONFUSE_MONSTER           13
 #define SPELL_SLEEP_MONSTER             14
-#define SPELL_WONDER                    15
+#define SPELL_MASS_IDENTIFY             15
 #define SPELL_FROST_BOLT                16
 #define SPELL_ACID_BOLT                 17
 #define SPELL_FIRE_BOLT                 18
@@ -137,6 +137,7 @@
 #define PRAYER_PERCEPTION              33
 #define PRAYER_PROBING                 34
 #define PRAYER_CLAIRVOYANCE            35
+#define PRAYER_MASS_IDENTIFY           58
 
 /* Purifications and Healing */
 #define PRAYER_CURE_SERIOUS_WOUNDS2    36
@@ -398,18 +399,19 @@ static int beam_chance(void)
 	return (player_has(PF_BEAM) ? plev : (plev / 2));
 }
 
-
-static void spell_wonder(int dir)
+/* Removed to make room for mass identify */
+/*static void spell_wonder(int dir)
 {
+*/
 /* This spell should become more useful (more
    controlled) as the player gains experience levels.
    Thus, add 1/5 of the player's level to the die roll.
    This eliminates the worst effects later on, while
    keeping the results quite random.  It also allows
    some potent effects only at high level. */
-	effect_wonder(dir, randint1(100) + p_ptr->lev / 5, beam_chance());
+/*	effect_wonder(dir, randint1(100) + p_ptr->lev / 5, beam_chance());
 }
-
+*/
 
 bool spell_needs_aim(int tval, int spell)
 {
@@ -425,7 +427,6 @@ bool spell_needs_aim(int tval, int spell)
 			case SPELL_SPEAR_OF_LIGHT:
 			case SPELL_FROST_BOLT:
 			case SPELL_TURN_STONE_TO_MUD:
-			case SPELL_WONDER:
 			case SPELL_POLYMORPH_OTHER:
 			case SPELL_FIRE_BOLT:
 			case SPELL_SLOW_MONSTER:
@@ -601,10 +602,9 @@ static bool cast_mage_spell(int spell, int dir)
 			return recharge(2 + plev / 5);
 		}
 
-		case SPELL_WONDER:
+		case SPELL_MASS_IDENTIFY:
 		{
-			(void)spell_wonder(dir);
-			break;
+			return mass_identify();
 		}
 
 		case SPELL_POLYMORPH_OTHER:
@@ -1142,6 +1142,11 @@ static bool cast_priest_spell(int spell, int dir)
 		{
 			(void)probing();
 			break;
+		}
+        
+        case PRAYER_MASS_IDENTIFY:
+		{
+			return mass_identify();
 		}
 
 		case PRAYER_CLAIRVOYANCE:
