@@ -894,7 +894,7 @@ static bool place_new_monster_one(int y, int x, monster_race *r_ptr,
 /*
  * Maximum size of a group of monsters
  */
-#define GROUP_MAX	25
+#define GROUP_MAX	13
 
 /**
  * Picks a monster group size. Used for monsters with the FRIENDS
@@ -907,19 +907,15 @@ static int group_size_1(const monster_race *r_ptr)
 	assert(r_ptr);
 	
 	/* Pick a group size */
-	total = randint1(13);
+	total = 3 + randint1(9);
 
 	/* Hard monsters, small groups */
 	if (r_ptr->level > p_ptr->depth)
 		extra = 0 - randint1(r_ptr->level - p_ptr->depth);
 
-	/* Easy monsters, large groups */
-	else if (r_ptr->level < p_ptr->depth)
-		extra = randint1(p_ptr->depth - r_ptr->level);
-
 	total += extra;
 
-	if (total < 1) total = 1;
+	if (total < 2) total = 2;
 
 	if (total > GROUP_MAX) total = GROUP_MAX;
 
