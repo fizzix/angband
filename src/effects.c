@@ -1213,42 +1213,27 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 
 		case EF_HASTE:
 		{
-			if (!p_ptr->timed[TMD_FAST])
-			{
-				if (player_set_timed(p_ptr, TMD_FAST, damroll(2, 10) + 20, TRUE)) *ident = TRUE;
-			}
-			else
-			{
-				(void)player_inc_timed(p_ptr, TMD_FAST, 5, TRUE, TRUE);
-			}
+
+			if (player_set_timed(p_ptr, TMD_FAST, damroll(2, 10) + 20, TRUE)) *ident = TRUE;
+			
 
 			return TRUE;
 		}
 
 		case EF_HASTE1:
 		{
-			if (!p_ptr->timed[TMD_FAST])
-			{
-				if (player_set_timed(p_ptr, TMD_FAST, randint1(20) + 20, TRUE)) *ident = TRUE;
-			}
-			else
-			{
-				(void)player_inc_timed(p_ptr, TMD_FAST, 5, TRUE, TRUE);
-			}
+
+			if (player_set_timed(p_ptr, TMD_FAST, randint1(20) + 20, TRUE)) *ident = TRUE;
+
 
 			return TRUE;
 		}
 
 		case EF_HASTE2:
 		{
-			if (!p_ptr->timed[TMD_FAST])
-			{
-				if (player_set_timed(p_ptr, TMD_FAST, randint1(75) + 75, TRUE)) *ident = TRUE;
-			}
-			else
-			{
-				(void)player_inc_timed(p_ptr, TMD_FAST, 5, TRUE, TRUE);
-			}
+
+			if (player_set_timed(p_ptr, TMD_FAST, randint1(75) + 75, TRUE)) *ident = TRUE;
+			
 
 			return TRUE;
 		}
