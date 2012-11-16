@@ -3005,7 +3005,7 @@ static errr init_alloc(void)
 			x = e_ptr->level;
 
 			/* Extract the base probability */
-			p = (100 / e_ptr->rarity);
+			p = e_ptr->alloc_prob;
 
 			/* Skip entries preceding our locale */
 			y = (x > 0) ? num[x-1] : 0;
