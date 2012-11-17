@@ -2143,25 +2143,25 @@ static void build_vault(struct cave *c, int y0, int x0, int ymax, int xmax, cons
 
 			/* Analyze the symbol */
 			switch (*t) {
-				case '&': pick_and_place_monster(c, y, x, c->depth + 5, TRUE, TRUE,
+				case '&': pick_and_place_monster(c, y, x, c->depth + 3, TRUE, TRUE,
 					ORIGIN_DROP_VAULT); break;
-				case '@': pick_and_place_monster(c, y, x, c->depth + 11, TRUE, TRUE,
+				case '@': pick_and_place_monster(c, y, x, c->depth + 5, TRUE, TRUE,
 					ORIGIN_DROP_VAULT); break;
 
 				case '9': {
 					/* Meaner monster, plus treasure */
-					pick_and_place_monster(c, y, x, c->depth + 9, TRUE, TRUE,
+					pick_and_place_monster(c, y, x, c->depth + 5, TRUE, TRUE,
 						ORIGIN_DROP_VAULT);
-					place_object(c, y, x, c->depth + 7, TRUE, FALSE,
+					place_object(c, y, x, c->depth + 5, TRUE, FALSE,
 						ORIGIN_VAULT, 0);
 					break;
 				}
 
 				case '8': {
 					/* Nasty monster and treasure */
-					pick_and_place_monster(c, y, x, c->depth + 40, TRUE, TRUE,
+					pick_and_place_monster(c, y, x, c->depth + 15, TRUE, TRUE,
 						ORIGIN_DROP_VAULT);
-					place_object(c, y, x, c->depth + 20, TRUE, TRUE,
+					place_object(c, y, x, c->depth + 10, TRUE, TRUE,
 						ORIGIN_VAULT, 0);
 					break;
 				}

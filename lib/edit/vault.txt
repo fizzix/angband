@@ -32,10 +32,10 @@
 #    * - treasure or trap
 #    + - secret door
 #    ^ - trap
-#    & - monster up to 5 levels out of depth (OOD)
-#    @ - monster up to 11 levels OOD
-#    9 - monster up to 9 levels OOD and treasure up to 7 levels OOD
-#    8 - monster up to 40 levels OOD and treasure up to 20 levels OOD
+#    & - monster up to 3 levels out of depth (OOD)
+#    @ - monster up to 5 levels OOD
+#    9 - monster up to 5 levels OOD and good treasure up to 5 levels OOD
+#    8 - monster up to 15 levels OOD and great treasure up to 10 levels OOD
 #    , - monster up to 3 levels OOD and/or treasure up to 7 levels OOD
 
 # Use this to measure columns                                                                        1
