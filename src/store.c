@@ -1384,7 +1384,7 @@ static bool store_create_random(struct store *store)
 		object_prep(i_ptr, kind, level, RANDOMISE);
 
 		/* Apply some "low-level" magic (no artifacts) */
-		apply_magic(i_ptr, level, FALSE, FALSE, FALSE);
+		apply_magic(i_ptr, level, FALSE, FALSE, FALSE, FALSE);
 
 		/* Reject if item is 'damaged' (i.e. negative mods) */
 		switch (i_ptr->tval)
