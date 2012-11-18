@@ -932,29 +932,6 @@ static int group_size_1(const monster_race *r_ptr)
 	return total;
 }
 		
-/**
- * Picks a monster group size. Used for monsters with the FRIEND
- * flag.
- */
-static int group_size_2(const monster_race *r_ptr)
-{
-	int total, extra = 0;
-
-	/* Start small */
-	total = 1;
-
-	assert(r_ptr);
-
-	/* Easy monsters, large groups */
-	if (r_ptr->level < p_ptr->depth)
-		extra = randint1(2 * (p_ptr->depth - r_ptr->level));
-
-	total += extra;
-
-	if (total > GROUP_MAX) total = GROUP_MAX;
-
-	return total;
-}
 
 		
 /**
@@ -1091,7 +1068,7 @@ bool place_new_monster(struct cave *c, int y, int x, int r_idx, bool sleep,
 
 	/* Friends for certain monsters */
 	if (rf_has(r_ptr->flags, RF_FRIEND)) {
-		int total = group_size_2(r_ptr);
+		int total = group_size_1(r_ptr);
 		(void)place_new_monster_group(c, y, x, r_ptr, sleep, total, origin);
 	}
 
@@ -1141,12 +1118,12 @@ bool place_new_monster(struct cave *c, int y, int x, int r_idx, bool sleep,
 
 			/* Place a "group" of escorts if needed */
 			if (rf_has(z_ptr->flags, RF_FRIEND)) {
-				int total = group_size_2(z_ptr);
+				int total = randint1(GROUP_MAX / 3);
 				(void)place_new_monster_group(c, ny, nx, z_ptr, sleep, total, origin);
 			}
 			
 			if (rf_has(z_ptr->flags, RF_FRIENDS) || rf_has(r_ptr->flags, RF_ESCORTS)) {
-				int total = group_size_1(z_ptr);
+				int total = randint1(GROUP_MAX / 2);
 				(void)place_new_monster_group(c, ny, nx, z_ptr, sleep, total, origin);
 			}
 		}
