@@ -1537,11 +1537,14 @@ bool ident_spell(void)
 bool mass_identify(void)
 {
     int item, y, x;
-    bool flag = FALSE;
     object_type *o_ptr;
+    
+    msg("You gain knowledge of everything around you.");
     
     /* Identify everything in the pack */
     identify_pack();
+    
+    compact_objects(0);
     
     /* Go through the object list */
     for (item = 1; item <= o_cnt; item++){
@@ -1551,6 +1554,7 @@ bool mass_identify(void)
         /* Skip "dead" objects */
 		if (!o_ptr->kind) continue;
    
+        
         /* Skip already known objects */
         if (object_is_known(o_ptr)) continue;
         
@@ -1564,16 +1568,14 @@ bool mass_identify(void)
         /* Identify the item */
         do_ident_item(-1, o_ptr, FALSE);
         
-        /* One item was identified */
-        flag = TRUE;
-        
         /* Notify for artifacts */
         if (o_ptr->artifact){
             msg("%s is revealed", o_ptr->artifact->name);
         }
+        
     }
     
-    return(flag);
+    return(TRUE);
 }
 
 
@@ -3373,6 +3375,10 @@ void do_ident_item(int item, object_type *o_ptr, bool show_message)
 
 	/* Description */
 	object_desc(o_name, sizeof(o_name), o_ptr, ODESC_PREFIX | ODESC_FULL);
+    
+    /* Log artifacts to the history list. */
+	if (o_ptr->artifact)
+        history_add_artifact(o_ptr->artifact, TRUE, TRUE);
 
     /* Don't show a message */
     if (!show_message) return;
@@ -3392,10 +3398,6 @@ void do_ident_item(int item, object_type *o_ptr, bool show_message)
 		msg_type = MSG_IDENT_EGO;
 	else
 		msg_type = MSG_GENERIC;
-
-	/* Log artifacts to the history list. */
-	if (o_ptr->artifact)
-		history_add_artifact(o_ptr->artifact, TRUE, TRUE);
 
 	/* Describe */
 	if (item >= INVEN_WIELD)
