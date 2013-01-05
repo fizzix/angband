@@ -99,7 +99,13 @@ void do_cmd_go_down(cmd_code code, cmd_arg args[])
 
 	/* Hack -- take a turn */
 	p_ptr->energy_use = 100;
-
+    
+    /* Prompt for extra descent */
+    if (!is_quest(p_ptr->max_depth + 1) && 
+        get_check("Would you like to descend an extra level?")){
+            p_ptr->depth += 1;
+    }
+    
 	/* Success */
 	msgt(MSG_STAIRS_DOWN, "You enter a maze of down staircases.");
 
