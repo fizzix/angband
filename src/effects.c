@@ -1019,9 +1019,8 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 
 		case EF_RECALL:
 		{
-			set_recall();
 			*ident = TRUE;
-			return TRUE;
+			return set_recall();
 		}
 
 		case EF_DEEP_DESCENT:

@@ -417,13 +417,13 @@ bool restore_level(void)
 /*
  * Set word of recall as appropriate
  */
-void set_recall(void)
+bool set_recall(void)
 {
 	/* No recall */
 	if (OPT(birth_no_recall) && !p_ptr->total_winner)
 	{
 		msg("Nothing happens.");
-		return;
+		return FALSE;
 	}
     
     /* No recall from quest levels with force_descend */
@@ -449,11 +449,8 @@ void set_recall(void)
 		/* Reset recall depth */
 		if ((p_ptr->depth > 0) && (p_ptr->depth != p_ptr->max_depth))
 		{
-			/*
-			 * ToDo: Add a new player_type field "recall_depth"
-			 * ToDo: Poll: Always reset recall depth?
-			 */
-			 if (get_check("Reset recall depth? "))
+			/* ToDo: Add a new player_type field "recall_depth" */
+			if (get_check("Reset recall depth? "))
 				p_ptr->max_depth = p_ptr->depth;
 		}
 
@@ -464,6 +461,9 @@ void set_recall(void)
 	/* Deactivate recall */
 	else
 	{
+		if (!get_check("Word of Recall is already active.  Do you want to cancel it? "))
+			return FALSE;
+
 		p_ptr->word_recall = 0;
 		msg("A tension leaves the air around you...");
 	}
@@ -471,6 +471,8 @@ void set_recall(void)
 	/* Redraw status line */
 	p_ptr->redraw = PR_STATUS;
 	handle_stuff(p_ptr);
+
+	return TRUE;
 }
 
 
