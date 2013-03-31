@@ -51,13 +51,10 @@ extern s16b character_xtra;
 extern u32b seed_randart;
 extern u32b seed_flavor;
 extern u32b seed_town;
-extern s16b num_repro;
 extern s32b turn;
 extern int use_graphics;
-extern bool use_graphics_nice;
 extern s16b signal_count;
 extern bool msg_flag;
-extern bool inkey_xtra;
 extern u32b inkey_scan;
 extern bool inkey_flag;
 extern s16b o_max;
@@ -75,10 +72,6 @@ extern quest *q_list;
 extern struct store *stores;
 extern int store_knowledge;
 extern const char *** name_sections;
-extern s16b alloc_ego_size;
-extern alloc_entry *alloc_ego_table;
-extern s16b alloc_race_size;
-extern alloc_entry *alloc_race_table;
 extern byte gf_to_attr[GF_MAX][BOLT_MAX];
 extern wchar_t gf_to_char[GF_MAX][BOLT_MAX];
 extern byte tval_to_attr[128];
@@ -95,7 +88,6 @@ extern monster_pain *pain_messages;
 extern struct player_race *races;
 extern struct player_class *classes;
 extern struct flavor *flavors;
-extern struct room_template *room_templates;
 extern struct vault *vaults;
 extern struct object_kind *objkinds;
 extern spell_type *s_info;
@@ -134,8 +126,6 @@ extern int text_out_pad;
 extern bool use_transparency;
 extern void (*sound_hook)(int);
 
-extern u16b daycount;
-
 /* util.c */
 extern struct keypress *inkey_next;
 
@@ -152,9 +142,6 @@ extern void move_player(int dir, bool disarm);
 /* cmd2.c */
 int count_feats(int *y, int *x, bool (*test)(struct cave *cave, int y, int x), bool under);
 int coords_to_dir(int y, int x);
-
-/* death.c */
-void death_screen(void);
 
 /* dungeon.c */
 extern void dungeon_change_level(int dlev);

@@ -35,6 +35,8 @@
 #include "spells.h"
 #include "target.h"
 
+u16b daycount = 0;
+
 /*
  * Change dungeon level - e.g. by going up stairs or with WoR.
  */

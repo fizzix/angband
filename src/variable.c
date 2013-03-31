@@ -64,18 +64,14 @@ u32b seed_randart;		/* Hack -- consistent random artifacts */
 u32b seed_flavor;		/* Hack -- consistent object colors */
 u32b seed_town;			/* Hack -- consistent town layout */
 
-s16b num_repro;			/* Current reproducer count */
-
 s32b turn;				/* Current game turn */
 
 int use_graphics;		/* The "graphics" mode is enabled */
-bool use_graphics_nice;	        /* The 'nice' "graphics" mode is enabled */
 
 s16b signal_count;		/* Hack -- Count interrupts */
 
 bool msg_flag;			/* Player has pending message */
 
-bool inkey_xtra;		/* See the "inkey()" function */
 u32b inkey_scan;		/* See the "inkey()" function */
 bool inkey_flag;		/* See the "inkey()" function */
 
@@ -432,28 +428,6 @@ int store_knowledge = STORE_NONE;
 const char *** name_sections;
 
 /*
- * The size of the "alloc_ego_table"
- */
-s16b alloc_ego_size;
-
-/*
- * The array[alloc_ego_size] of entries in the "ego allocator table"
- */
-alloc_entry *alloc_ego_table;
-
-
-/*
- * The size of "alloc_race_table" (at most z_info->r_max)
- */
-s16b alloc_race_size;
-
-/*
- * The array[alloc_race_size] of entries in the "race allocator table"
- */
-alloc_entry *alloc_race_table;
-
-
-/*
  * Specify attr/char pairs for visual special effects for project()
  */
 byte gf_to_attr[GF_MAX][BOLT_MAX];
@@ -524,7 +498,6 @@ monster_pain *pain_messages;
 
 struct player_race *races;
 struct player_class *classes;
-struct room_template *room_templates;
 struct vault *vaults;
 struct object_kind *objkinds;
 
@@ -652,9 +625,4 @@ void (*sound_hook)(int sound);
 /* Delay in centiseconds before moving to allow another keypress */
 /* Zero means normal instant movement. */
 u16b lazymove_delay = 0;
-
-
-/* Number of days passed on the current dungeon trip -
-  - used for determining store updates on return to town */
-u16b daycount = 0;
 
