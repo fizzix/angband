@@ -1794,7 +1794,7 @@ static void store_display_entry(menu_type *menu, int oid, bool cursor, int row, 
 {
 	object_type *o_ptr;
 	s32b x;
-	odesc_detail_t desc = ODESC_PREFIX;
+	int desc = ODESC_PREFIX;
 
 	char o_name[80];
 	char out_val[160];
@@ -3074,16 +3074,6 @@ static const menu_iter store_menu =
 	store_menu_handle,
 	NULL
 };
-
-static const menu_iter store_know_menu =
-{
-	NULL,
-	NULL,
-	store_display_entry,
-	NULL,
-	NULL
-};
-
 
 /*
  * Display contents of a store from knowledge menu

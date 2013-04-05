@@ -148,7 +148,7 @@ typedef struct player
 
 	struct monster *health_who;		/* Health bar trackee */
 
-	s16b monster_race_idx;	/* Monster race trackee */
+	struct monster_race *monster_race;	/* Monster race trackee */
 
 	s16b object_idx;    /* Object trackee */
 	s16b object_kind_idx;	/* Object kind trackee */
@@ -227,7 +227,7 @@ typedef struct player_sex
 /*
  * Player racial info
  */
-typedef struct player_race
+struct player_race
 {
 	struct player_race *next;
 	const char *name;
@@ -261,7 +261,7 @@ typedef struct player_race
 	
 	bitflag flags[OF_SIZE];   /* Racial (object) flags */
 	bitflag pflags[PF_SIZE];  /* Racial (player) flags */
-} player_race;
+};
 
 struct start_item
 {

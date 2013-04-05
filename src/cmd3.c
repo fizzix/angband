@@ -576,7 +576,7 @@ static void lookup_symbol(struct keypress sym, char *buf, size_t max)
  */
 void do_cmd_query_symbol(void)
 {
-	int i, n, r_idx;
+	int i, n;
 	char buf[128];
 
 	struct keypress sym;
@@ -589,9 +589,6 @@ void do_cmd_query_symbol(void)
 	bool recall = FALSE;
 
 	u16b *who;
-
-	const monster_race *r_ptr;
-	const monster_lore *l_ptr;
 
 	/* Get a character, or abort */
 	if (!get_com("Enter character to be identified, or control+[ANU]: ", &sym))
@@ -708,12 +705,12 @@ void do_cmd_query_symbol(void)
 	while (1)
 	{
 		/* Extract a race */
-		r_idx = who[i];
-		r_ptr = &r_info[r_idx];
-		l_ptr = &l_list[r_idx];
+		int r_idx = who[i];
+		monster_race *r_ptr = &r_info[r_idx];
+		monster_lore *l_ptr = &l_list[r_idx];
 
 		/* Hack -- Auto-recall */
-		monster_race_track(r_idx);
+		monster_race_track(r_ptr);
 
 		/* Hack -- Handle stuff */
 		handle_stuff(p_ptr);
