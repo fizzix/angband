@@ -21,6 +21,7 @@
 #include "button.h"
 #include "cave.h"
 #include "cmds.h"
+#include "dungeon.h"
 #include "files.h"
 #include "game-event.h"
 #include "generate.h"
@@ -828,7 +829,7 @@ static void process_world(struct cave *c)
 
 		/* Activate the recall */
 		if (p_ptr->deep_descent == 0) {
-			int i, target_depth = p_ptr->max_depth;
+			int target_depth = p_ptr->max_depth;
 
 			/* Calculate target depth */
 			for (i = 5; i > 0; i--) {
@@ -1187,8 +1188,8 @@ static void process_player(void)
 	if (p_ptr->notice) notice_stuff(p_ptr);
 }
 
-byte flicker = 0;
-byte color_flicker[MAX_COLORS][3] = 
+static byte flicker = 0;
+static byte color_flicker[MAX_COLORS][3] = 
 {
 	{TERM_DARK, TERM_L_DARK, TERM_L_RED},
 	{TERM_WHITE, TERM_L_WHITE, TERM_L_BLUE},
@@ -1298,10 +1299,6 @@ static void dungeon(struct cave *c)
 
 	/* Not leaving */
 	p_ptr->leaving = FALSE;
-
-
-	/* Reset the "command" vars */
-	p_ptr->command_arg = 0;
 
 
 	/* Cancel the target */

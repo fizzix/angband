@@ -89,7 +89,6 @@ static const struct {
 	{ "misc", wr_misc, 2 },
 	{ "player hp", wr_player_hp, 1 },
 	{ "player spells", wr_player_spells, 1 },
-	{ "randarts", wr_randarts, 3 },
 	{ "inventory", wr_inventory, 5 },
 	{ "stores", wr_stores, 5 },
 	{ "dungeon", wr_dungeon, 1 },
@@ -120,8 +119,6 @@ static const struct {
 	{ "misc", rd_misc_2, 2},
 	{ "player hp", rd_player_hp, 1 },
 	{ "player spells", rd_player_spells, 1 },
-	{ "randarts", rd_randarts_1, 1 },
-	{ "randarts", rd_randarts_2, 2 },
 	{ "randarts", rd_randarts_3, 3 },
 	{ "inventory", rd_inventory_1, 1 },
 	{ "inventory", rd_inventory_2, 2 },
@@ -536,7 +533,7 @@ bool savefile_load(const char *path)
 	byte head[8];
 	bool ok = TRUE;
 
-	ang_file *f = file_open(path, MODE_READ, -1);
+	ang_file *f = file_open(path, MODE_READ, FTYPE_TEXT);
 	if (f) {
 		if (file_read(f, (char *) &head, 8) == 8 &&
 				memcmp(&head[0], savefile_magic, 4) == 0 &&

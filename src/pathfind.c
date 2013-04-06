@@ -19,6 +19,7 @@
 
 #include "angband.h"
 #include "cave.h"
+#include "pathfind.h"
 #include "squelch.h"
 
 /****** Pathfinding code ******/
@@ -864,7 +865,7 @@ void run_step(int dir)
 		run_init(dir);
 
 		/* Hack -- Set the run counter */
-		p_ptr->running = (p_ptr->command_arg ? p_ptr->command_arg : 1000);
+		p_ptr->running = 1000;
 
 		/* Calculate torch radius */
 		p_ptr->update |= (PU_TORCH);

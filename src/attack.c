@@ -207,7 +207,6 @@ static bool py_attack_real(int y, int x, bool *fear) {
 
 	/* Handle normal weapon */
 	if (o_ptr->kind) {
-		int i;
 		const struct slay *best_s_ptr = NULL;
 
 		hit_verb = "hit";
@@ -484,9 +483,7 @@ static void ranged_helper(int item, int dir, int range, int shots, ranged_attack
 				/* Invisible monster */
 				msgt(MSG_SHOOT_HIT, "The %s finds a mark.", o_name);
 			} else {
-				size_t i;
-
-				for (i = 0; i < N_ELEMENTS(ranged_hit_types); i++) {
+				for (i = 0; i < (int)N_ELEMENTS(ranged_hit_types); i++) {
 					char *dmg_text = "";
 
 					if (msg_type != ranged_hit_types[i].msg)
@@ -544,7 +541,7 @@ static void ranged_helper(int item, int dir, int range, int shots, ranged_attack
  * Helper function used with ranged_helper by do_cmd_fire.
  */
 static struct attack_result make_ranged_shot(object_type *o_ptr, int y, int x) {
-	struct attack_result result = {FALSE, 0, 0, "hit"};
+	struct attack_result result = {FALSE, 0, 0, "hits"};
 
 	object_type *j_ptr = &p_ptr->inventory[INVEN_BOW];
 
@@ -587,7 +584,7 @@ static struct attack_result make_ranged_shot(object_type *o_ptr, int y, int x) {
  * Helper function used with ranged_helper by do_cmd_throw.
  */
 static struct attack_result make_ranged_throw(object_type *o_ptr, int y, int x) {
-	struct attack_result result = {FALSE, 0, 0, "hit"};
+	struct attack_result result = {FALSE, 0, 0, "hits"};
 
 	monster_type *m_ptr = cave_monster_at(cave, y, x);
 	

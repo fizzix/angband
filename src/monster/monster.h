@@ -160,7 +160,7 @@ typedef struct monster_race
 	struct monster_blow blow[MONSTER_BLOW_MAX]; /* Up to four blows per round */
 
 	byte level;				/* Level of creature */
-	byte rarity;			/* Rarity of creature */
+	int rarity;			/* Rarity of creature */
 
 	byte d_attr;			/* Default monster attribute */
 	wchar_t d_char;			/* Default monster character */
@@ -264,8 +264,6 @@ extern bool make_attack_spell(struct monster *m);
 
 extern s16b num_repro;
 
-#ifdef TEST
 extern bool (*testfn_make_attack_normal)(struct monster *m, struct player *p);
-#endif /* !TEST */
 
 #endif /* !MONSTER_MONSTER_H */

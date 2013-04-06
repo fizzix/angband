@@ -1838,7 +1838,7 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 				{ MSG_BR_FIRE,  "fire",       GF_FIRE }
 			};
 
-			int chance = randint0(5);
+			chance = randint0(5);
 			dam = 250 * (100 + boost) / 100;
 			msgt(mh[chance].msg_sound, "You breathe %s.", mh[chance].msg);
 			fire_ball(mh[chance].typ, dir, dam, 2);
@@ -1952,7 +1952,7 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 				msg("You float gently to the floor of the pit.");
 				msg("You carefully avoid touching the spikes.");
 			} else {
-				int dam = damroll(2, 6);
+				dam = damroll(2, 6);
 
 				/* Extra spike damage */
 				if (one_in_(2)) {
@@ -1975,7 +1975,7 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 				msg("You float gently to the floor of the pit.");
 				msg("You carefully avoid touching the spikes.");
 			} else {
-				int dam = damroll(2, 6);
+				dam = damroll(2, 6);
 
 				/* Extra spike damage */
 				if (one_in_(2)) {
@@ -2016,8 +2016,6 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 
 		case EF_TRAP_SPOT_FIRE:
 		{
-			int dam;
-
 			msg("You are enveloped in flames!");
 			dam = damroll(4, 6);
 			dam = adjust_dam(p_ptr, GF_FIRE, dam, RANDOMISE,
@@ -2031,8 +2029,6 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 
 		case EF_TRAP_SPOT_ACID:
 		{
-			int dam;
-
 			msg("You are splashed with acid!");
 			dam = damroll(4, 6);
 			dam = adjust_dam(p_ptr, GF_ACID, dam, RANDOMISE,
