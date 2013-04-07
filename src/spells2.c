@@ -2030,7 +2030,7 @@ void destroy_area(int y1, int x1, int r, bool full)
 			if (k > r) continue;
 
 			/* Lose room and vault */
-			cave->info[y][x] &= ~(CAVE_ROOM | CAVE_ICKY);
+			cave->info[y][x] &= ~(CAVE_ROOM | CAVE_VAULT);
 
 			/* Lose light */
 			cave->info[y][x] &= ~(CAVE_GLOW);
@@ -2190,7 +2190,7 @@ void earthquake(int cy, int cx, int r)
 			if (distance(cy, cx, yy, xx) > r) continue;
 
 			/* Lose room and vault */
-			cave->info[yy][xx] &= ~(CAVE_ROOM | CAVE_ICKY);
+			cave->info[yy][xx] &= ~(CAVE_ROOM | CAVE_VAULT);
 
 			/* Lose light and knowledge */
 			cave->info[yy][xx] &= ~(CAVE_GLOW | CAVE_MARK);
@@ -2220,7 +2220,7 @@ void earthquake(int cy, int cx, int r)
 			x = px + ddx_ddd[i];
 
 			/* Skip non-empty grids */
-			if (!cave_empty_bold(y, x)) continue;
+			if (!cave_isempty(cave, y, x)) continue;
 
 			/* Important -- Skip "quake" grids */
 			if (map[16+y-cy][16+x-cx]) continue;
@@ -2334,7 +2334,7 @@ void earthquake(int cy, int cx, int r)
 							x = xx + ddx_ddd[i];
 
 							/* Skip non-empty grids */
-							if (!cave_empty_bold(y, x)) continue;
+							if (!cave_isempty(cave, y, x)) continue;
 
 							/* Hack -- no safety on glyph of warding */
 							if (cave->feat[y][x] == FEAT_GLYPH) continue;
@@ -2426,7 +2426,7 @@ void earthquake(int cy, int cx, int r)
 			{
 				int feat = FEAT_FLOOR;
 
-				bool floor = cave_floor_bold(yy, xx);
+				bool floor = cave_ispassable(cave, yy, xx);
 
 				/* Delete objects */
 				delete_object(yy, xx);
@@ -2498,9 +2498,6 @@ static void cave_light(struct point_set *ps)
 		int y = ps->pts[i].y;
 		int x = ps->pts[i].x;
 
-		/* No longer in the array */
-		cave->info[y][x] &= ~(CAVE_TEMP);
-
 		/* Perma-Light */
 		cave->info[y][x] |= (CAVE_GLOW);
 	}
@@ -2564,9 +2561,6 @@ static void cave_unlight(struct point_set *ps)
 		int y = ps->pts[i].y;
 		int x = ps->pts[i].x;
 
-		/* No longer in the array */
-		cave->info[y][x] &= ~(CAVE_TEMP);
-
 		/* Darken the grid */
 		cave->info[y][x] &= ~(CAVE_GLOW);
 
@@ -2600,14 +2594,11 @@ static void cave_unlight(struct point_set *ps)
  */
 static void cave_room_aux(struct point_set *seen, int y, int x)
 {
-	/* Avoid infinite recursion */
-	if (cave->info[y][x] & (CAVE_TEMP)) return;
+	if (point_set_contains(seen, y, x))
+		return;
 
-	/* Do not "leave" the current room */
-	if (!(cave->info[y][x] & (CAVE_ROOM))) return;
-
-	/* Mark the grid as "seen" */
-	cave->info[y][x] |= (CAVE_TEMP);
+	if (!cave_isroom(cave, y, x))
+		return;
 
 	/* Add it to the "seen" set */
 	add_to_point_set(seen, y, x);
@@ -2633,7 +2624,7 @@ static void light_room(int y1, int x1, bool light)
 		x = ps->pts[i].x, y = ps->pts[i].y;
 
 		/* Walls get lit, but stop light */
-		if (!cave_floor_bold(y, x)) continue;
+		if (!cave_ispassable(cave, y, x)) continue;
 
 		/* Spread adjacent */
 		cave_room_aux(ps, y + 1, x);

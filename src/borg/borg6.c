@@ -392,7 +392,7 @@ static void borg_flow_spread(int depth, bool optimize, bool avoid, bool tunnelin
 				borg_skill[BI_FOOD] >= 2 && borg_skill[BI_MAXCLEVEL] < 5) continue;
 
 			/* Avoid shop entry points if I am not heading to that shop */
-			if (goal_shop >= 0 && ag->feat >= FEAT_SHOP_HEAD && ag->feat <= FEAT_SHOP_TAIL &&
+			if (goal_shop >= 0 && feature_isshop(ag->feat) &&
 				(ag->feat != FEAT_SHOP_HEAD + goal_shop) && y != c_y && x != c_x) continue;
 
 
@@ -838,7 +838,7 @@ static bool borg_surrounded(void)
         else if (ag->kill) non_safe_grids ++;
 
         /* Mega-Hack -- skip stores XXX XXX XXX */
-        else if ((ag->feat >= FEAT_SHOP_HEAD) && (ag->feat <= FEAT_SHOP_TAIL)) non_safe_grids ++;
+        else if (feature_isshop(ag->feat)) non_safe_grids ++;
 
         /* Mega-Hack -- skip traps XXX XXX XXX */
         if ((ag->feat >= FEAT_TRAP_HEAD) && (ag->feat <= FEAT_TRAP_TAIL)) non_safe_grids ++;
@@ -1575,7 +1575,7 @@ bool borg_shoot_scoot_safe(int emergency, int turns, int b_p)
 
 	/* Cheat the floor grid */
 	/* Not if in a vault since it throws us out of the vault */
-	if (cave->info[c_y][c_x] & (CAVE_ICKY)) return (FALSE);
+	if (cave_isvault(cave, c_y, c_x)) return (FALSE);
 
 	/*** Need Missiles or cheap spells ***/
 
@@ -3929,7 +3929,7 @@ bool borg_caution(void)
           (borg_surround && p != 0)) &&
         !borg_morgoth_position && (borg_t - borg_t_antisummon >= 50) &&
 		!borg_skill[BI_ISCONFUSED] &&
-		!(cave->info[c_y][c_x] & CAVE_ICKY) &&
+		!cave_isvault(cave, c_y, c_x) &&
 		borg_skill[BI_CURHP] < 500)
    {
         int d, b_d = -1;
@@ -4160,7 +4160,7 @@ bool borg_caution(void)
 	 */
     if (((p > (avoidance *4/10) && !nasty && !borg_no_retreat) || (borg_surround && p != 0)) &&
         !borg_morgoth_position && (borg_t - borg_t_antisummon >= 50) && !borg_skill[BI_ISCONFUSED] &&
-		!(cave->info[c_y][c_x] & CAVE_ICKY) &&
+		!cave_isvault(cave, c_y, c_x) &&
 		borg_skill[BI_CURHP] < 500)
     {
         int i = -1, b_i = -1;
@@ -4198,7 +4198,7 @@ bool borg_caution(void)
             if (ag->kill) continue;
 
 			/* Mega-Hack -- skip stores XXX XXX XXX */
-            if ((ag->feat >= FEAT_SHOP_HEAD) && (ag->feat <= FEAT_SHOP_TAIL)) continue;
+            if (feature_isshop(ag->feat)) continue;
 
             /* Mega-Hack -- skip traps XXX XXX XXX */
             if ((ag->feat >= FEAT_TRAP_HEAD) && (ag->feat <= FEAT_TRAP_TAIL)) continue;
@@ -15421,7 +15421,7 @@ static bool borg_play_step(int y2, int x2)
 	
 
     /* Shops -- Enter */
-    if ((ag->feat >= FEAT_SHOP_HEAD) && (ag->feat <= FEAT_SHOP_TAIL))
+    if (feature_isshop(ag->feat))
     {
         /* Message */
         borg_note(format("# Entering a '%d' shop", (ag->feat - FEAT_SHOP_HEAD) + 1));

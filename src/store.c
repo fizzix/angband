@@ -555,8 +555,7 @@ static struct store *current_store(void)
 	if (store_knowledge != STORE_NONE)
 		n = store_knowledge;
 
-	else if ((cave->feat[p_ptr->py][p_ptr->px] >= FEAT_SHOP_HEAD) &&
-			(cave->feat[p_ptr->py][p_ptr->px] <= FEAT_SHOP_TAIL))
+	else if (cave_isshop(cave, p_ptr->py, p_ptr->px))
 		n = cave->feat[p_ptr->py][p_ptr->px] - FEAT_SHOP_HEAD;
 
 	if (n != STORE_NONE)
@@ -3125,7 +3124,7 @@ void do_cmd_store(cmd_code code, cmd_arg args[])
 	event_signal(EVENT_ENTER_STORE);
 
 	/* Forget the view */
-	forget_view();
+	forget_view(cave);
 
 
 	/*** Display ***/

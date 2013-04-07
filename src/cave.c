@@ -25,15 +25,6 @@
 #include "squelch.h"
 #include "cmds.h"
 
-static int view_n;
-static u16b view_g[VIEW_MAX];
-static int  vinfo_grids;
-static int  vinfo_slopes;
-static u32b vinfo_bits_3;
-static u32b vinfo_bits_2;
-static u32b vinfo_bits_1;
-static u32b vinfo_bits_0;
-
 /*
  * Approximate distance between two points.
  *
@@ -135,7 +126,7 @@ bool los(int y1, int x1, int y2, int x2)
 		{
 			for (ty = y1 + 1; ty < y2; ty++)
 			{
-				if (!cave_floor_bold(ty, x1)) return (FALSE);
+				if (!cave_ispassable(cave, ty, x1)) return (FALSE);
 			}
 		}
 
@@ -144,7 +135,7 @@ bool los(int y1, int x1, int y2, int x2)
 		{
 			for (ty = y1 - 1; ty > y2; ty--)
 			{
-				if (!cave_floor_bold(ty, x1)) return (FALSE);
+				if (!cave_ispassable(cave, ty, x1)) return (FALSE);
 			}
 		}
 
@@ -160,7 +151,7 @@ bool los(int y1, int x1, int y2, int x2)
 		{
 			for (tx = x1 + 1; tx < x2; tx++)
 			{
-				if (!cave_floor_bold(y1, tx)) return (FALSE);
+				if (!cave_ispassable(cave, y1, tx)) return (FALSE);
 			}
 		}
 
@@ -169,7 +160,7 @@ bool los(int y1, int x1, int y2, int x2)
 		{
 			for (tx = x1 - 1; tx > x2; tx--)
 			{
-				if (!cave_floor_bold(y1, tx)) return (FALSE);
+				if (!cave_ispassable(cave, y1, tx)) return (FALSE);
 			}
 		}
 
@@ -182,13 +173,12 @@ bool los(int y1, int x1, int y2, int x2)
 	sx = (dx < 0) ? -1 : 1;
 	sy = (dy < 0) ? -1 : 1;
 
-
 	/* Vertical "knights" */
 	if (ax == 1)
 	{
 		if (ay == 2)
 		{
-			if (cave_floor_bold(y1 + sy, x1)) return (TRUE);
+			if (cave_ispassable(cave, y1 + sy, x1)) return (TRUE);
 		}
 	}
 
@@ -197,10 +187,9 @@ bool los(int y1, int x1, int y2, int x2)
 	{
 		if (ax == 2)
 		{
-			if (cave_floor_bold(y1, x1 + sx)) return (TRUE);
+			if (cave_ispassable(cave, y1, x1 + sx)) return (TRUE);
 		}
 	}
-
 
 	/* Calculate scale factor div 2 */
 	f2 = (ax * ay);
@@ -233,7 +222,7 @@ bool los(int y1, int x1, int y2, int x2)
 		/* the LOS exactly meets the corner of a tile. */
 		while (x2 - tx)
 		{
-			if (!cave_floor_bold(ty, tx)) return (FALSE);
+			if (!cave_ispassable(cave, ty, tx)) return (FALSE);
 
 			qy += m;
 
@@ -244,7 +233,7 @@ bool los(int y1, int x1, int y2, int x2)
 			else if (qy > f2)
 			{
 				ty += sy;
-				if (!cave_floor_bold(ty, tx)) return (FALSE);
+				if (!cave_ispassable(cave, ty, tx)) return (FALSE);
 				qy -= f1;
 				tx += sx;
 			}
@@ -280,7 +269,7 @@ bool los(int y1, int x1, int y2, int x2)
 		/* the LOS exactly meets the corner of a tile. */
 		while (y2 - ty)
 		{
-			if (!cave_floor_bold(ty, tx)) return (FALSE);
+			if (!cave_ispassable(cave, ty, tx)) return (FALSE);
 
 			qx += m;
 
@@ -291,7 +280,7 @@ bool los(int y1, int x1, int y2, int x2)
 			else if (qx > f2)
 			{
 				tx += sx;
-				if (!cave_floor_bold(ty, tx)) return (FALSE);
+				if (!cave_ispassable(cave, ty, tx)) return (FALSE);
 				qx -= f1;
 				ty += sy;
 			}
@@ -307,9 +296,6 @@ bool los(int y1, int x1, int y2, int x2)
 	/* Assume los */
 	return (TRUE);
 }
-
-
-
 
 /*
  * Returns true if the player's grid is dark
@@ -332,7 +318,8 @@ bool cave_valid_bold(int y, int x)
 	object_type *o_ptr;
 
 	/* Forbid perma-grids */
-	if (cave_perma_bold(y, x)) return (FALSE);
+	if (cave_isperm(cave, y, x) || cave_isshop(cave, y, x) || 
+		cave_isstairs(cave, y, x)) return (FALSE);
 
 	/* Check objects */
 	for (o_ptr = get_first_object(y, x); o_ptr; o_ptr = get_next_object(o_ptr))
@@ -443,16 +430,6 @@ bool dtrap_edge(int y, int x)
 
 	return FALSE; 
 }
-
-
-static bool feat_is_known_trap(int feat) {
-	return feat >= FEAT_TRAP_HEAD && feat <= FEAT_TRAP_TAIL;
-}
-
-static bool feat_is_treasure(int feat) {
-	return feat == FEAT_MAGMA_K || feat == FEAT_QUARTZ_K;
-}
-
 
 /**
  * Apply text lighting effects
@@ -1522,7 +1499,7 @@ void do_cmd_view_map(void)
  * which grids are part of "rooms", and thus which grids are affected by
  * "illumination" spells.  This flag does not have to be very fast.
  *
- * The "CAVE_ICKY" flag is saved in the savefile and is used to determine
+ * The "CAVE_VAULT" flag is saved in the savefile and is used to determine
  * which grids are part of "vaults", and thus which grids cannot serve as
  * the destinations of player teleportation.  This flag does not have to
  * be very fast.
@@ -1575,7 +1552,7 @@ void do_cmd_view_map(void)
  * and "update_view()" whenever the "CAVE_WALL" or "CAVE_GLOW" flags change
  * for a grid which has "CAVE_VIEW" set.  This flag must be very fast.
  *
- * The "CAVE_TEMP" flag is used for a variety of temporary purposes.  This
+ * The "CAVE_WASSEEN" flag is used for a variety of temporary purposes.  This
  * flag is used to determine if the "CAVE_SEEN" flag for a grid has changed
  * during the "update_view()" function.  This flag is used to "spread" light
  * or darkness through a room.  This flag is used by the "monster flow code".
@@ -1753,553 +1730,21 @@ void do_cmd_view_map(void)
  *      ########?????????????    ########?????????????
  */
 
-
-
-
-/*
- * Maximum number of grids in a single octant
- */
-#define VINFO_MAX_GRIDS 161
-
-
-/*
- * Maximum number of slopes in a single octant
- */
-#define VINFO_MAX_SLOPES 126
-
-/*
- * Forward declare
- */
-typedef struct vinfo_type vinfo_type;
-
-
-/*
- * The 'vinfo_type' structure
- */
-struct vinfo_type
-{
-	s16b grid[8];
-
-	u32b bits_3;
-	u32b bits_2;
-	u32b bits_1;
-	u32b bits_0;
-
-	vinfo_type *next_0;
-	vinfo_type *next_1;
-
-	byte y;
-	byte x;
-	byte d;
-	byte r;
-};
-
-
-
-/*
- * The array of "vinfo" objects, initialized by "vinfo_init()"
- */
-static vinfo_type vinfo[VINFO_MAX_GRIDS];
-
-
-
-
-/*
- * Slope scale factor
- */
-#define SCALE 100000L
-
-
-/*
- * The actual slopes (for reference)
- */
-
-/* Bit :     Slope   Grids */
-/* --- :     -----   ----- */
-/*   0 :      2439      21 */
-/*   1 :      2564      21 */
-/*   2 :      2702      21 */
-/*   3 :      2857      21 */
-/*   4 :      3030      21 */
-/*   5 :      3225      21 */
-/*   6 :      3448      21 */
-/*   7 :      3703      21 */
-/*   8 :      4000      21 */
-/*   9 :      4347      21 */
-/*  10 :      4761      21 */
-/*  11 :      5263      21 */
-/*  12 :      5882      21 */
-/*  13 :      6666      21 */
-/*  14 :      7317      22 */
-/*  15 :      7692      20 */
-/*  16 :      8108      21 */
-/*  17 :      8571      21 */
-/*  18 :      9090      20 */
-/*  19 :      9677      21 */
-/*  20 :     10344      21 */
-/*  21 :     11111      20 */
-/*  22 :     12000      21 */
-/*  23 :     12820      22 */
-/*  24 :     13043      22 */
-/*  25 :     13513      22 */
-/*  26 :     14285      20 */
-/*  27 :     15151      22 */
-/*  28 :     15789      22 */
-/*  29 :     16129      22 */
-/*  30 :     17241      22 */
-/*  31 :     17647      22 */
-/*  32 :     17948      23 */
-/*  33 :     18518      22 */
-/*  34 :     18918      22 */
-/*  35 :     20000      19 */
-/*  36 :     21212      22 */
-/*  37 :     21739      22 */
-/*  38 :     22580      22 */
-/*  39 :     23076      22 */
-/*  40 :     23809      22 */
-/*  41 :     24137      22 */
-/*  42 :     24324      23 */
-/*  43 :     25714      23 */
-/*  44 :     25925      23 */
-/*  45 :     26315      23 */
-/*  46 :     27272      22 */
-/*  47 :     28000      23 */
-/*  48 :     29032      23 */
-/*  49 :     29411      23 */
-/*  50 :     29729      24 */
-/*  51 :     30434      23 */
-/*  52 :     31034      23 */
-/*  53 :     31428      23 */
-/*  54 :     33333      18 */
-/*  55 :     35483      23 */
-/*  56 :     36000      23 */
-/*  57 :     36842      23 */
-/*  58 :     37142      24 */
-/*  59 :     37931      24 */
-/*  60 :     38461      24 */
-/*  61 :     39130      24 */
-/*  62 :     39393      24 */
-/*  63 :     40740      24 */
-/*  64 :     41176      24 */
-/*  65 :     41935      24 */
-/*  66 :     42857      23 */
-/*  67 :     44000      24 */
-/*  68 :     44827      24 */
-/*  69 :     45454      23 */
-/*  70 :     46666      24 */
-/*  71 :     47368      24 */
-/*  72 :     47826      24 */
-/*  73 :     48148      24 */
-/*  74 :     48387      24 */
-/*  75 :     51515      25 */
-/*  76 :     51724      25 */
-/*  77 :     52000      25 */
-/*  78 :     52380      25 */
-/*  79 :     52941      25 */
-/*  80 :     53846      25 */
-/*  81 :     54838      25 */
-/*  82 :     55555      24 */
-/*  83 :     56521      25 */
-/*  84 :     57575      26 */
-/*  85 :     57894      25 */
-/*  86 :     58620      25 */
-/*  87 :     60000      23 */
-/*  88 :     61290      25 */
-/*  89 :     61904      25 */
-/*  90 :     62962      25 */
-/*  91 :     63636      25 */
-/*  92 :     64705      25 */
-/*  93 :     65217      25 */
-/*  94 :     65517      25 */
-/*  95 :     67741      26 */
-/*  96 :     68000      26 */
-/*  97 :     68421      26 */
-/*  98 :     69230      26 */
-/*  99 :     70370      26 */
-/* 100 :     71428      25 */
-/* 101 :     72413      26 */
-/* 102 :     73333      26 */
-/* 103 :     73913      26 */
-/* 104 :     74193      27 */
-/* 105 :     76000      26 */
-/* 106 :     76470      26 */
-/* 107 :     77777      25 */
-/* 108 :     78947      26 */
-/* 109 :     79310      26 */
-/* 110 :     80952      26 */
-/* 111 :     81818      26 */
-/* 112 :     82608      26 */
-/* 113 :     84000      26 */
-/* 114 :     84615      26 */
-/* 115 :     85185      26 */
-/* 116 :     86206      27 */
-/* 117 :     86666      27 */
-/* 118 :     88235      27 */
-/* 119 :     89473      27 */
-/* 120 :     90476      27 */
-/* 121 :     91304      27 */
-/* 122 :     92000      27 */
-/* 123 :     92592      27 */
-/* 124 :     93103      28 */
-/* 125 :    100000      13 */
-
-
-
-/*
- * Forward declare
- */
-typedef struct vinfo_hack vinfo_hack;
-
-
-/*
- * Temporary data used by "vinfo_init()"
- *
- *	- Number of grids
- *
- *	- Number of slopes
- *
- *	- Slope values
- *
- *	- Slope range per grid
- */
-struct vinfo_hack {
-
-	int num_slopes;
-
-	long slopes[VINFO_MAX_SLOPES];
-
-	long slopes_min[MAX_SIGHT_LGE+1][MAX_SIGHT_LGE+1];
-	long slopes_max[MAX_SIGHT_LGE+1][MAX_SIGHT_LGE+1];
-};
-
-static int cmp_longs(const void *a, const void *b)
-{
-	long x = *(const long *)a;
-	long y = *(const long *)b;
-
-	if (x < y)
-		return -1;
-	if (x > y)
-		return 1;
-
-	return 0;
-}
-
-/*
- * Save a slope
- */
-static void vinfo_init_aux(vinfo_hack *hack, int y, int x, long m)
-{
-	int i;
-
-	/* Handle "legal" slopes */
-	if ((m > 0) && (m <= SCALE))
-	{
-		/* Look for that slope */
-		for (i = 0; i < hack->num_slopes; i++)
-		{
-			if (hack->slopes[i] == m) break;
-		}
-
-		/* New slope */
-		if (i == hack->num_slopes)
-		{
-			/* Paranoia */
-			if (hack->num_slopes >= vinfo_slopes)
-			{
-				quit_fmt("Too many slopes (%d)!",
-					 vinfo_slopes);
-			}
-
-			/* Save the slope, and advance */
-			hack->slopes[hack->num_slopes++] = m;
-		}
-	}
-
-	/* Track slope range */
-	if (hack->slopes_min[y][x] > m) hack->slopes_min[y][x] = m;
-	if (hack->slopes_max[y][x] < m) hack->slopes_max[y][x] = m;
-}
-
-
-
-/*
- * Initialize the "vinfo" array
- *
- * Full Octagon (radius 20), Grids=1149
- *
- * Quadrant (south east), Grids=308, Slopes=251
- *
- * Octant (east then south), Grids=161, Slopes=126
- *
- * This function assumes that VINFO_MAX_GRIDS and VINFO_MAX_SLOPES
- * have the correct values, which can be derived by setting them to
- * a number which is too high, running this function, and using the
- * error messages to obtain the correct values.
- */
-errr vinfo_init(void)
-{
-	int i, g;
-	int y, x;
-
-	long m;
-
-	vinfo_hack *hack;
-
-	int num_grids = 0;
-
-	int queue_head = 0;
-	int queue_tail = 0;
-	vinfo_type *queue[VINFO_MAX_GRIDS*2];
-
-
-	/* Set the variables for the grids, bits and slopes actually used */
-	vinfo_grids = (OPT(birth_small_range) ? 48 : 161);
-	vinfo_slopes = (OPT(birth_small_range) ? 36 : 126);
-	vinfo_bits_3 = (OPT(birth_small_range) ? 0x00000000 : 0x3FFFFFFF);
-	vinfo_bits_2 = (OPT(birth_small_range) ? 0x00000000 : 0xFFFFFFFF);
-	vinfo_bits_1 = (OPT(birth_small_range) ? 0x0000000F : 0xFFFFFFFF);
-	vinfo_bits_0 = (OPT(birth_small_range) ? 0xFFFFFFFF : 0xFFFFFFFF);
-
-	/* Make hack */
-	hack = ZNEW(vinfo_hack);
-
-
-	/* Analyze grids */
-	for (y = 0; y <= MAX_SIGHT; ++y)
-	{
-		for (x = y; x <= MAX_SIGHT; ++x)
-		{
-			/* Skip grids which are out of sight range */
-			if (distance(0, 0, y, x) > MAX_SIGHT) continue;
-
-			/* Default slope range */
-			hack->slopes_min[y][x] = 999999999;
-			hack->slopes_max[y][x] = 0;
-
-			/* Paranoia */
-			if (num_grids >= vinfo_grids)
-			{
-				quit_fmt("Too many grids (%d >= %d)!",
-				         num_grids, vinfo_grids);
-			}
-
-			/* Count grids */
-			num_grids++;
-
-			/* Slope to the top right corner */
-			m = SCALE * (1000L * y - 500) / (1000L * x + 500);
-
-			/* Handle "legal" slopes */
-			vinfo_init_aux(hack, y, x, m);
-
-			/* Slope to top left corner */
-			m = SCALE * (1000L * y - 500) / (1000L * x - 500);
-
-			/* Handle "legal" slopes */
-			vinfo_init_aux(hack, y, x, m);
-
-			/* Slope to bottom right corner */
-			m = SCALE * (1000L * y + 500) / (1000L * x + 500);
-
-			/* Handle "legal" slopes */
-			vinfo_init_aux(hack, y, x, m);
-
-			/* Slope to bottom left corner */
-			m = SCALE * (1000L * y + 500) / (1000L * x - 500);
-
-			/* Handle "legal" slopes */
-			vinfo_init_aux(hack, y, x, m);
-		}
-	}
-
-
-	/* Enforce maximal efficiency */
-	if (num_grids < vinfo_grids)
-	{
-		quit_fmt("Too few grids (%d < %d)!",
-		         num_grids, vinfo_grids);
-	}
-
-	/* Enforce maximal efficiency */
-	if (hack->num_slopes < vinfo_slopes)
-	{
-		quit_fmt("Too few slopes (%d < %d)!",
-		         hack->num_slopes, vinfo_slopes);
-	}
-
-	sort(hack->slopes, hack->num_slopes, sizeof(*hack->slopes), cmp_longs);
-
-	/* Enqueue player grid */
-	queue[queue_tail++] = &vinfo[0];
-
-	/* Process queue */
-	while (queue_head < queue_tail)
-	{
-		int e;
-
-
-		/* Index */
-		e = queue_head++;
-
-		/* Main Grid */
-		g = vinfo[e].grid[0];
-
-		/* Location */
-		y = GRID_Y(g);
-		x = GRID_X(g);
-
-
-		/* Compute grid offsets */
-		vinfo[e].grid[0] = GRID(+y,+x);
-		vinfo[e].grid[1] = GRID(+x,+y);
-		vinfo[e].grid[2] = GRID(+x,-y);
-		vinfo[e].grid[3] = GRID(+y,-x);
-		vinfo[e].grid[4] = GRID(-y,-x);
-		vinfo[e].grid[5] = GRID(-x,-y);
-		vinfo[e].grid[6] = GRID(-x,+y);
-		vinfo[e].grid[7] = GRID(-y,+x);
-
-
-		/* Analyze slopes */
-		for (i = 0; i < hack->num_slopes; ++i)
-		{
-			m = hack->slopes[i];
-
-			/* Memorize intersection slopes (for non-player-grids) */
-			if ((e > 0) &&
-			    (hack->slopes_min[y][x] < m) &&
-			    (m < hack->slopes_max[y][x]))
-			{
-				switch (i / 32)
-				{
-					case 3: vinfo[e].bits_3 |= (1L << (i % 32)); break;
-					case 2: vinfo[e].bits_2 |= (1L << (i % 32)); break;
-					case 1: vinfo[e].bits_1 |= (1L << (i % 32)); break;
-					case 0: vinfo[e].bits_0 |= (1L << (i % 32)); break;
-				}
-			}
-		}
-
-
-		/* Default */
-		vinfo[e].next_0 = &vinfo[0];
-
-		/* Grid next child */
-		if (distance(0, 0, y, x+1) <= MAX_SIGHT)
-		{
-			g = GRID(y,x+1);
-
-			if (queue[queue_tail-1]->grid[0] != g)
-			{
-				vinfo[queue_tail].grid[0] = g;
-				queue[queue_tail] = &vinfo[queue_tail];
-				queue_tail++;
-			}
-
-			vinfo[e].next_0 = &vinfo[queue_tail - 1];
-		}
-
-
-		/* Default */
-		vinfo[e].next_1 = &vinfo[0];
-
-		/* Grid diag child */
-		if (distance(0, 0, y+1, x+1) <= MAX_SIGHT)
-		{
-			g = GRID(y+1,x+1);
-
-			if (queue[queue_tail-1]->grid[0] != g)
-			{
-				vinfo[queue_tail].grid[0] = g;
-				queue[queue_tail] = &vinfo[queue_tail];
-				queue_tail++;
-			}
-
-			vinfo[e].next_1 = &vinfo[queue_tail - 1];
-		}
-
-
-		/* Hack -- main diagonal has special children */
-		if (y == x) vinfo[e].next_0 = vinfo[e].next_1;
-
-
-		/* Extra values */
-		vinfo[e].y = y;
-		vinfo[e].x = x;
-		vinfo[e].d = ((y > x) ? (y + x/2) : (x + y/2));
-		vinfo[e].r = ((!y) ? x : (!x) ? y : (y == x) ? y : 0);
-	}
-
-
-	/* Verify maximal bits XXX XXX XXX */
-	if (((vinfo[1].bits_3 | vinfo[2].bits_3) != vinfo_bits_3)
-	    || ((vinfo[1].bits_2 | vinfo[2].bits_2) != vinfo_bits_2)
-	    || ((vinfo[1].bits_1 | vinfo[2].bits_1) != vinfo_bits_1)
-	    || ((vinfo[1].bits_0 | vinfo[2].bits_0) != vinfo_bits_0)) {
-	        quit_fmt("Incorrect bit masks: %x\n%x\n%x\n%x\n", 
-			 (vinfo[1].bits_3 | vinfo[2].bits_3),
-			 (vinfo[1].bits_2 | vinfo[2].bits_2),
-			 (vinfo[1].bits_1 | vinfo[2].bits_1),
-			 (vinfo[1].bits_0 | vinfo[2].bits_0));
-	}
-
-
-	/* Kill hack */
-	FREE(hack);
-
-
-	/* Success */
-	return (0);
-}
-
-
-
 /*
  * Forget the "CAVE_VIEW" grids, redrawing as needed
  */
-void forget_view(void)
+void forget_view(struct cave *c)
 {
-	int i, g;
+	int x, y;
 
-	int fast_view_n = view_n;
-	u16b *fast_view_g = view_g;
-
-	/* XXX: this is moronic. It's not 'fast'. */
-	byte *fast_cave_info = &cave->info[0][0];
-
-
-	/* None to forget */
-	if (!fast_view_n) return;
-
-	/* Clear them all */
-	for (i = 0; i < fast_view_n; i++)
-	{
-		int y, x;
-
-		/* Grid */
-		g = fast_view_g[i];
-
-		/* Location */
-		y = GRID_Y(g);
-		x = GRID_X(g);
-
-		/* Clear "CAVE_VIEW" and "CAVE_SEEN" flags */
-		fast_cave_info[g] &= ~(CAVE_VIEW | CAVE_SEEN);
-
-		/* Clear "CAVE_LIGHT" flag */
-		/* fast_cave->info[g] &= ~(CAVE_LIGHT); */
-
-		/* Redraw */
-		cave_light_spot(cave, y, x);
+	for (y = 0; y < CAVE_INFO_Y; y++) {
+		for (x = 0; x < CAVE_INFO_X; x++) {
+			if (!cave_isview(c, y, x))
+				continue;
+			c->info[y][x] &= ~(CAVE_VIEW | CAVE_SEEN);
+			cave_light_spot(c, y, x);
+		}
 	}
-
-	/* None left */
-	fast_view_n = 0;
-
-
-	/* Save 'view_n' */
-	view_n = fast_view_n;
 }
 
 
@@ -2327,7 +1772,7 @@ void forget_view(void)
  * along the diagonal axes, so we check the bits corresponding to
  * the lines of sight near the major axes first.
  *
- * We use the "temp_g" array (and the "CAVE_TEMP" flag) to keep track of
+ * We use the "temp_g" array (and the "CAVE_WASSEEN" flag) to keep track of
  * which grids were previously marked "CAVE_SEEN", since only those grids
  * whose "CAVE_SEEN" value changes during this routine must be redrawn.
  *
@@ -2390,386 +1835,208 @@ void forget_view(void)
  * special grids.  Because the actual number of required grids is bizarre,
  * we simply allocate twice as many as we would normally need.  XXX XXX XXX
  */
-void update_view(void)
+static void mark_wasseen(struct cave *c) 
 {
-	int py = p_ptr->py;
-	int px = p_ptr->px;
-
-	int pg = GRID(py,px);
-
-	int i, j, k, g, o2;
-
-	int radius;
-
-	int fast_view_n = view_n;
-	u16b *fast_view_g = view_g;
-
-	int fast_temp_n = 0;
-	u16b *fast_temp_g = temp_g;
-
-	/* XXX: also moronic. Optimizers exist. */
-	byte *fast_cave_info = &cave->info[0][0];
-
-	byte info;
-
-
-	/*** Step 0 -- Begin ***/
-
+	int x, y;
 	/* Save the old "view" grids for later */
-	for (i = 0; i < fast_view_n; i++)
-	{
-		/* Grid */
-		g = fast_view_g[i];
-
-		/* Get grid info */
-		info = fast_cave_info[g];
-
-		/* Save "CAVE_SEEN" grids */
-		if (info & (CAVE_SEEN))
-		{
-			/* Set "CAVE_TEMP" flag */
-			info |= (CAVE_TEMP);
-
-			/* Save grid for later */
-			fast_temp_g[fast_temp_n++] = g;
+	for (y = 0; y < CAVE_INFO_Y; y++) {
+		for (x = 0; x < CAVE_INFO_X; x++) {
+			if (c->info[y][x] & CAVE_SEEN)
+				c->info[y][x] |= CAVE_WASSEEN;
+			c->info[y][x] &= ~(CAVE_VIEW | CAVE_SEEN);
 		}
-
-		/* Clear "CAVE_VIEW" and "CAVE_SEEN" flags */
-		info &= ~(CAVE_VIEW | CAVE_SEEN);
-
-		/* Clear "CAVE_LIGHT" flag */
-		/* info &= ~(CAVE_LIGHT); */
-
-		/* Save cave info */
-		fast_cave_info[g] = info;
 	}
+}
 
-	/* Reset the "view" array */
-	fast_view_n = 0;
-
-	/* Extract "radius" value */
-	radius = p_ptr->cur_light;
-
-	/* Handle real light */
-	if (radius > 0) ++radius;
+static void add_monster_lights(struct cave *c, struct loc from)
+{
+	int i, j, k;
 
 	/* Scan monster list and add monster lights */
-	for (k = 1; k < z_info->m_max; k++)
-	{
+	for (k = 1; k < z_info->m_max; k++) {
 		/* Check the k'th monster */
-		monster_type *m_ptr = cave_monster(cave, k);
+		struct monster *m = cave_monster(c, k);
 
-		/* Access the location */
-		int fx = m_ptr->fx;
-		int fy = m_ptr->fy;
-
-		bool in_los = los(p_ptr->py, p_ptr->px, fy, fx);
+		bool in_los = los(from.y, from.x, m->fy, m->fx);
 
 		/* Skip dead monsters */
-		if (!m_ptr->race) continue;
+		if (!m->race)
+			continue;
 
 		/* Skip monsters not carrying light */
-		if (!rf_has(m_ptr->race->flags, RF_HAS_LIGHT)) continue;
+		if (!rf_has(m->race->flags, RF_HAS_LIGHT))
+			continue;
 
 		/* Light a 3x3 box centered on the monster */
 		for (i = -1; i <= 1; i++)
 		{
 			for (j = -1; j <= 1; j++)
 			{
-				int sy = fy + i;
-				int sx = fx + j;
+				int sy = m->fy + i;
+				int sx = m->fx + j;
 				
 				/* If the monster isn't visible we can only light open tiles */
-				if (!in_los && !cave_floor_bold(sy, sx))
+				if (!in_los && !cave_ispassable(cave, sy, sx))
 					continue;
 
 				/* If the tile is too far away we won't light it */
-				if (distance(p_ptr->py, p_ptr->px, sy, sx) > MAX_SIGHT)
+				if (distance(from.y, from.x, sy, sx) > MAX_SIGHT)
 					continue;
 				
 				/* If the tile itself isn't in LOS, don't light it */
-				if (!los(p_ptr->py, p_ptr->px, sy, sx))
+				if (!los(from.y, from.x, sy, sx))
 					continue;
-				
-				g = GRID(sy, sx);
 
 				/* Mark the square lit and seen */
-				fast_cave_info[g] |= (CAVE_VIEW | CAVE_SEEN);
-				
-				/* Save in array */
-				fast_view_g[fast_view_n++] = g;
+				c->info[sy][sx] |= (CAVE_VIEW | CAVE_SEEN);
+			}
+		}
+	}
+}
+
+static void update_one(struct cave *c, int y, int x, int blind)
+{
+	if (blind)
+		c->info[y][x] &= ~CAVE_SEEN;
+
+	/* Square went from unseen -> seen */
+	if (cave_isseen(c, y, x) && !cave_wasseen(c, y, x)) {
+		if (cave_isfeel(c, y, x)) {
+			c->feeling_squares++;
+			c->info2[y][x] &= ~CAVE2_FEEL;
+			if (c->feeling_squares == FEELING1)
+				display_feeling(TRUE);
+		}
+
+		cave_note_spot(c, y, x);
+		cave_light_spot(c, y, x);
+	}
+
+	/* Square went from seen -> unseen */
+	if (!cave_isseen(c, y, x) && cave_wasseen(c, y, x))
+		cave_light_spot(c, y, x);
+
+	c->info[y][x] &= ~CAVE_WASSEEN;
+}
+
+static void become_viewable(struct cave *c, int y, int x, int lit, int py, int px)
+{
+	int xc = x;
+	int yc = y;
+	if (cave_isview(c, y, x))
+		return;
+
+	c->info[y][x] |= CAVE_VIEW;
+
+	if (lit)
+		c->info[y][x] |= CAVE_SEEN;
+
+	if (cave_isglow(c, y, x)) {
+		if (cave_iswall(c, y, x)) {
+			/* For walls, move a bit towards the player.
+			 * TODO(elly): huh? why?
+			 */
+			xc = (x < px) ? (x + 1) : (x > px) ? (x - 1) : x;
+			yc = (y < py) ? (y + 1) : (y > py) ? (y - 1) : y;
+		}
+		if (cave_isglow(c, yc, xc))
+			c->info[y][x] |= CAVE_SEEN;
+	}
+}
+
+static void update_view_one(struct cave *c, int y, int x, int radius, int py, int px)
+{
+	int xc = x;
+	int yc = y;
+
+	int d = distance(y, x, py, px);
+	int lit = d < radius;
+
+	if (d > MAX_SIGHT)
+		return;
+
+	/* Special case for wall lighting. If we are a wall and the square in
+	 * the direction of the player is in LOS, we are in LOS. This avoids
+	 * situations like:
+	 * #1#############
+	 * #............@#
+	 * ###############
+	 * where the wall cell marked '1' would not be lit because the LOS
+	 * algorithm runs into the adjacent wall cell.
+	 */
+	if (cave_iswall(c, y, x)) {
+		int dx = x - px;
+		int dy = y - py;
+		int ax = ABS(dx);
+		int ay = ABS(dy);
+		int sx = dx > 0 ? 1 : -1;
+		int sy = dy > 0 ? 1 : -1;
+
+		xc = (x < px) ? (x + 1) : (x > px) ? (x - 1) : x;
+		yc = (y < py) ? (y + 1) : (y > py) ? (y - 1) : y;
+
+		/* Check that the cell we're trying to steal LOS from isn't a
+		 * wall. If we don't do this, double-thickness walls will have
+		 * both sides visible.
+		 */
+		if (cave_iswall(c, yc, xc)) {
+			xc = x;
+			yc = y;
+		}
+
+		/* Check that we got here via the 'knight's move' rule. If so,
+		 * don't steal LOS. */
+		if (ax == 2 && ay == 1) {
+			if (  !cave_iswall(c, x + sx, y)
+			    && cave_iswall(c, x + sx, y + sy)) {
+				xc = x;
+				yc = y;
+			}
+		} else if (ax == 1 && ay == 2) {
+			if (  !cave_iswall(c, x, y + sy)
+			    && cave_iswall(c, x + sx, y + sy)) {
+				xc = x;
+				yc = y;
 			}
 		}
 	}
 
 
-	/*** Step 1 -- player grid ***/
+	if (los(py, px, yc, xc))
+		become_viewable(c, y, x, lit, py, px);
+}
 
-	/* Player grid */
-	g = pg;
+void update_view(struct cave *c, struct player *p)
+{
+	int x, y;
 
-	/* Get grid info */
-	info = fast_cave_info[g];
+	int radius;
 
-	/* Assume viewable */
-	info |= (CAVE_VIEW);
+	mark_wasseen(c);
 
-	/* Torch-lit grid */
-	if (0 < radius)
-	{
-		/* Mark as "CAVE_SEEN" */
-		info |= (CAVE_SEEN);
+	/* Extract "radius" value */
+	radius = p->cur_light;
 
-		/* Mark as "CAVE_LIGHT" */
-		/* info |= (CAVE_LIGHT); */
-	}
+	/* Handle real light */
+	if (radius > 0) ++radius;
 
-	/* Perma-lit grid */
-	else if (info & (CAVE_GLOW))
-	{
-		/* Mark as "CAVE_SEEN" */
-		info |= (CAVE_SEEN);
-	}
+	add_monster_lights(c, loc(p->px, p->py));
 
-	/* Save cave info */
-	fast_cave_info[g] = info;
+	/* Assume we can view the player grid */
+	c->info[p->py][p->px] |= CAVE_VIEW;
+	if (radius > 0 || cave_isglow(c, p->py, p->px))
+		c->info[p->py][p->px] |= CAVE_SEEN;
 
-	/* Save in array */
-	fast_view_g[fast_view_n++] = g;
-
-
-	/*** Step 2 -- octants ***/
-
-	/* Scan each octant */
-	for (o2 = 0; o2 < 8; o2++)
-	{
-		vinfo_type *p;
-
-		/* Last added */
-		vinfo_type *last = &vinfo[0];
-
-		/* Grid queue */
-		int queue_head = 0;
-		int queue_tail = 0;
-		vinfo_type *queue[VINFO_MAX_GRIDS*2];
-
-		/* Slope bit vector */
-		u32b bits0 = vinfo_bits_0;
-		u32b bits1 = vinfo_bits_1;
-		u32b bits2 = vinfo_bits_2;
-		u32b bits3 = vinfo_bits_3;
-
-		/* Reset queue */
-		queue_head = queue_tail = 0;
-
-		/* Initial grids */
-		queue[queue_tail++] = &vinfo[1];
-		queue[queue_tail++] = &vinfo[2];
-
-		/* Process queue */
-		while (queue_head < queue_tail)
-		{
-			/* Dequeue next grid */
-			p = queue[queue_head++];
-
-			/* Check bits */
-			if ((bits0 & (p->bits_0)) ||
-			    (bits1 & (p->bits_1)) ||
-			    (bits2 & (p->bits_2)) ||
-			    (bits3 & (p->bits_3)))
-			{
-				/* Extract grid value XXX XXX XXX */
-				g = pg + p->grid[o2];
-
-				/* Get grid info */
-				info = fast_cave_info[g];
-
-				/* Handle wall */
-				if (info & (CAVE_WALL))
-				{
-					/* Clear bits */
-					bits0 &= ~(p->bits_0);
-					bits1 &= ~(p->bits_1);
-					bits2 &= ~(p->bits_2);
-					bits3 &= ~(p->bits_3);
-
-					/* Newly viewable wall */
-					if (!(info & (CAVE_VIEW)))
-					{
-						/* Mark as viewable */
-						info |= (CAVE_VIEW);
-
-						/* Torch-lit grids */
-						if (p->d < radius)
-						{
-							/* Mark as "CAVE_SEEN" */
-							info |= (CAVE_SEEN);
-
-							/* Mark as "CAVE_LIGHT" */
-							/* info |= (CAVE_LIGHT); */
-						}
-
-						/* Perma-lit grids */
-						else if (info & (CAVE_GLOW))
-						{
-							int y = GRID_Y(g);
-							int x = GRID_X(g);
-
-							/* Hack -- move towards player */
-							int yy = (y < py) ? (y + 1) : (y > py) ? (y - 1) : y;
-							int xx = (x < px) ? (x + 1) : (x > px) ? (x - 1) : x;
-
-							/* Check for "simple" illumination */
-							if (cave->info[yy][xx] & (CAVE_GLOW))
-							{
-								/* Mark as seen */
-								info |= (CAVE_SEEN);
-							}
-						}
-
-						/* Save cave info */
-						fast_cave_info[g] = info;
-
-						/* Save in array */
-						fast_view_g[fast_view_n++] = g;
-					}
-				}
-
-				/* Handle non-wall */
-				else
-				{
-					/* Enqueue child */
-					if (last != p->next_0)
-					{
-						queue[queue_tail++] = last = p->next_0;
-					}
-
-					/* Enqueue child */
-					if (last != p->next_1)
-					{
-						queue[queue_tail++] = last = p->next_1;
-					}
-
-					/* Newly viewable non-wall */
-					if (!(info & (CAVE_VIEW)))
-					{
-						/* Mark as "viewable" */
-						info |= (CAVE_VIEW);
-
-						/* Torch-lit grids */
-						if (p->d < radius)
-						{
-							/* Mark as "CAVE_SEEN" */
-							info |= (CAVE_SEEN);
-
-							/* Mark as "CAVE_LIGHT" */
-							/* info |= (CAVE_LIGHT); */
-						}
-
-						/* Perma-lit grids */
-						else if (info & (CAVE_GLOW))
-						{
-							/* Mark as "CAVE_SEEN" */
-							info |= (CAVE_SEEN);
-						}
-
-						/* Save cave info */
-						fast_cave_info[g] = info;
-
-						/* Save in array */
-						fast_view_g[fast_view_n++] = g;
-					}
-				}
-			}
-		}
-	}
-
+	/* View squares we have LOS to */
+	for (y = 0; y < CAVE_INFO_Y; y++)
+		for (x = 0; x < CAVE_INFO_X; x++)
+			update_view_one(cave, y, x, radius, p->py, p->px);
 
 	/*** Step 3 -- Complete the algorithm ***/
 
-	/* Handle blindness */
-	if (p_ptr->timed[TMD_BLIND])
-	{
-		/* Process "new" grids */
-		for (i = 0; i < fast_view_n; i++)
-		{
-			/* Grid */
-			g = fast_view_g[i];
-
-			/* Grid cannot be "CAVE_SEEN" */
-			fast_cave_info[g] &= ~(CAVE_SEEN);
-		}
-	}
-
-	/* Process "new" grids */
-	for (i = 0; i < fast_view_n; i++)
-	{
-		/* Grid */
-		g = fast_view_g[i];
-
-		/* Get grid info */
-		info = fast_cave_info[g];
-
-		/* Was not "CAVE_SEEN", is now "CAVE_SEEN" */
-		if ((info & (CAVE_SEEN)) && !(info & (CAVE_TEMP)))
-		{
-			int y, x;
-
-			/* Location */
-			y = GRID_Y(g);
-			x = GRID_X(g);
-			
-			/* Handle feeling squares */
-			if (cave->info2[y][x] & CAVE2_FEEL)
-			{
-				cave->feeling_squares++;
-				
-				/* Erase the square so you can't 'resee' it */
-				cave->info2[y][x] &= ~(CAVE2_FEEL);
-			
-				/* Display feeling if necessary */
-				if (cave->feeling_squares == FEELING1)
-					display_feeling(TRUE);
-		
-			}
-			
-			cave_note_spot(cave, y, x);
-			cave_light_spot(cave, y, x);
-		}
-	}
-
-	/* Process "old" grids */
-	for (i = 0; i < fast_temp_n; i++)
-	{
-		/* Grid */
-		g = fast_temp_g[i];
-
-		/* Get grid info */
-		info = fast_cave_info[g];
-
-		/* Clear "CAVE_TEMP" flag */
-		info &= ~(CAVE_TEMP);
-
-		/* Save cave info */
-		fast_cave_info[g] = info;
-
-		/* Was "CAVE_SEEN", is now not "CAVE_SEEN" */
-		if (!(info & (CAVE_SEEN)))
-		{
-			int y, x;
-
-			/* Location */
-			y = GRID_Y(g);
-			x = GRID_X(g);
-
-			/* Redraw */
-			cave_light_spot(cave, y, x);
-		}
-	}
-
-
-	/* Save 'view_n' */
-	view_n = fast_view_n;
+	for (y = 0; y < CAVE_INFO_Y; y++)
+		for (x = 0; x < CAVE_INFO_X; x++)
+			update_one(c, y, x, p->timed[TMD_BLIND]);
 }
 
 
@@ -3063,65 +2330,25 @@ void cave_illuminate(struct cave *c, bool daytime)
 {
 	int y, x, i;
 
-
 	/* Apply light or darkness */
 	for (y = 0; y < c->height; y++)
-	{
 		for (x = 0; x < c->width; x++)
-		{
-			/* Interesting grids */
-			if (c->feat[y][x] > FEAT_INVIS)
-			{
-				/* Illuminate the grid */
-				c->info[y][x] |= (CAVE_GLOW);
-
-				/* Memorize the grid */
-				c->info[y][x] |= (CAVE_MARK);
-			}
-
-			/* Boring grids (light) */
-			else if (daytime)
-			{
-				/* Illuminate the grid */
-				c->info[y][x] |= (CAVE_GLOW);
-
-				/* Memorize grids */
-				c->info[y][x] |= (CAVE_MARK);
-			}
-
-			/* Boring grids (dark) */
+			/* Only interesting grids at night */
+			if (daytime || c->feat[y][x] > FEAT_INVIS)
+				c->info[y][x] |= CAVE_GLOW | CAVE_MARK;
 			else
-			{
-				/* Darken the grid */
-				c->info[y][x] &= ~(CAVE_GLOW);
-
-				/* Forget grids */
-				c->info[y][x] &= ~(CAVE_MARK);
-			}
-		}
-	}
+				c->info[y][x] &= ~(CAVE_GLOW | CAVE_MARK);
 
 
-	/* Handle shop doorways */
-	for (y = 0; y < c->height; y++)
-	{
-		for (x = 0; x < c->width; x++)
-		{
-			/* Track shop doorways */
-			if ((c->feat[y][x] >= FEAT_SHOP_HEAD) &&
-			    (c->feat[y][x] <= FEAT_SHOP_TAIL))
-			{
-				for (i = 0; i < 8; i++)
-				{
-					int yy = y + ddy_ddd[i];
-					int xx = x + ddx_ddd[i];
-
-					/* Illuminate the grid */
-					c->info[yy][xx] |= (CAVE_GLOW);
-
-					/* Memorize grids */
-					c->info[yy][xx] |= (CAVE_MARK);
-				}
+	/* Light shop doorways */
+	for (y = 0; y < c->height; y++) {
+		for (x = 0; x < c->width; x++) {
+			if (!cave_isshop(c, y, x))
+				continue;
+			for (i = 0; i < 8; i++) {
+				int yy = y + ddy_ddd[i];
+				int xx = x + ddx_ddd[i];
+				c->info[yy][xx] |= (CAVE_GLOW | CAVE_MARK);
 			}
 		}
 	}
@@ -3293,7 +2520,7 @@ int project_path(u16b *gp, int range, int y1, int x1, int y2, int x2, int flg)
 			}
 
 			/* Always stop at non-initial wall grids */
-			if ((n > 0) && !cave_floor_bold(y, x)) break;
+			if ((n > 0) && !cave_ispassable(cave, y, x)) break;
 
 			/* Sometimes stop at non-initial monsters/players */
 			if (flg & (PROJECT_STOP))
@@ -3355,7 +2582,7 @@ int project_path(u16b *gp, int range, int y1, int x1, int y2, int x2, int flg)
 			}
 
 			/* Always stop at non-initial wall grids */
-			if ((n > 0) && !cave_floor_bold(y, x)) break;
+			if ((n > 0) && !cave_ispassable(cave, y, x)) break;
 
 			/* Sometimes stop at non-initial monsters/players */
 			if (flg & (PROJECT_STOP))
@@ -3411,7 +2638,7 @@ int project_path(u16b *gp, int range, int y1, int x1, int y2, int x2, int flg)
 			}
 
 			/* Always stop at non-initial wall grids */
-			if ((n > 0) && !cave_floor_bold(y, x)) break;
+			if ((n > 0) && !cave_ispassable(cave, y, x)) break;
 
 			/* Sometimes stop at non-initial monsters/players */
 			if (flg & (PROJECT_STOP))
@@ -3461,7 +2688,7 @@ bool projectable(int y1, int x1, int y2, int x2, int flg)
 	x = GRID_X(grid_g[grid_n-1]);
 
 	/* May not end in a wall grid */
-	if (!cave_floor_bold(y, x)) return (FALSE);
+	if (!cave_ispassable(cave, y, x)) return (FALSE);
 
 	/* May not end in an unrequested grid */
 	if ((y != y2) || (x != x2)) return (FALSE);
@@ -3689,6 +2916,13 @@ bool cave_ismineral(struct cave *c, int y, int x) {
 }
 
 /**
+ * True if the square is a mineral wall with treasure (magma/quartz).
+ */
+bool feat_is_treasure(int feat) {
+	return feat == FEAT_MAGMA_K || feat == FEAT_QUARTZ_K;
+}
+
+/**
  * True if the square is rubble.
  */
 bool cave_isrubble(struct cave *c, int y, int x) {
@@ -3757,9 +2991,15 @@ bool cave_issecrettrap(struct cave *c, int y, int x) {
 /**
  * True if the square is a known trap.
  */
-bool cave_isknowntrap(struct cave *c, int y, int x) {
-	int feat = c->feat[y][x];
+bool feat_is_known_trap(int feat) {
 	return feat >= FEAT_TRAP_HEAD && feat <= FEAT_TRAP_TAIL;
+}
+
+/**
+ * True if the square is a known trap.
+ */
+bool cave_isknowntrap(struct cave *c, int y, int x) {
+	return feat_is_known_trap(c->feat[y][x]);
 }
 
 /**
@@ -3767,6 +3007,13 @@ bool cave_isknowntrap(struct cave *c, int y, int x) {
  */
 bool cave_istrap(struct cave *c, int y, int x) {
 	return cave_issecrettrap(cave, y, x) || cave_isknowntrap(cave, y, x);
+}
+
+/**
+ * True if the feature is a shop entrance.
+ */
+bool feature_isshop(int feat) {
+	return (feat >= FEAT_SHOP_HEAD && feat <= FEAT_SHOP_TAIL);
 }
 
 /**
@@ -3786,10 +3033,16 @@ bool cave_isupstairs(struct cave*c, int y, int x) {
 /**
  * True if cave is a down stair.
  */
-bool cave_isdownstairs(struct cave*c, int y, int x) {
+bool cave_isdownstairs(struct cave *c, int y, int x) {
     return c->feat[y][x] == FEAT_MORE;
 }
 
+/**
+ * True if the square is a shop entrance.
+ */
+bool cave_isshop(struct cave *c, int y, int x) {
+	return feature_isshop(c->feat[y][x]);
+}
 
 /**
  * SQUARE BEHAVIOR PREDICATES
@@ -3832,12 +3085,19 @@ bool cave_isdiggable(struct cave *c, int y, int x) {
 }
 
 /**
+ * True if the feature is passable by the player.
+ */
+bool feat_ispassable(feature_type *f_ptr) {
+	return ff_has(f_ptr->flags, FF_PWALK);
+}
+
+/**
  * True if the square is passable by the player.
  *
  * This function is the logical negation of cave_iswall().
  */
 bool cave_ispassable(struct cave *c, int y, int x) {
-	return !(c->info[y][x] & CAVE_WALL);
+	return feat_ispassable(&f_info[c->feat[y][x]]);
 }
 
 /**
@@ -3865,7 +3125,7 @@ bool cave_isstrongwall(struct cave *c, int y, int x) {
  * This doesn't say what kind of square it is, just that it is part of a vault.
  */
 bool cave_isvault(struct cave *c, int y, int x) {
-	return c->info[y][x] & CAVE_ICKY;
+	return c->info[y][x] & CAVE_VAULT;
 }
 
 /**
@@ -3879,8 +3139,39 @@ bool cave_isroom(struct cave *c, int y, int x) {
 /**
  * True if cave square is a feeling trigger square 
  */
-bool cave_isfeel(struct cave *c, int y, int x){
+bool cave_isfeel(struct cave *c, int y, int x) {
 	return c->info2[y][x] & CAVE2_FEEL;
+}
+
+/* True if the cave square is viewable */
+bool cave_isview(struct cave *c, int y, int x) {
+	return c->info[y][x] & CAVE_VIEW;
+}
+
+bool cave_isseen(struct cave *c, int y, int x) {
+	return c->info[y][x] & CAVE_SEEN;
+}
+
+bool cave_wasseen(struct cave *c, int y, int x) {
+	return c->info[y][x] & CAVE_WASSEEN;
+}
+
+bool cave_isglow(struct cave *c, int y, int x) {
+	return c->info[y][x] & CAVE_GLOW;
+}
+
+/**
+ * True if the feature is "boring".
+ */
+bool feat_isboring(feature_type *f_ptr) {
+	return ff_has(f_ptr->flags, FF_BORING);
+}
+
+/**
+ * True if the cave square is "boring".
+ */
+bool cave_isboring(struct cave *c, int y, int x) {
+	return feat_isboring(&f_info[c->feat[y][x]]);
 }
 
 /**
@@ -3894,7 +3185,7 @@ struct monster *cave_monster(struct cave *c, int idx) {
  * Get a monster on the current level by its position.
  */
 struct monster *cave_monster_at(struct cave *c, int y, int x) {
-	struct monster *mon = cave_monster(cave, cave->m_idx[y][x]);
+	struct monster *mon = cave_monster(c, c->m_idx[y][x]);
 	return mon->race ? mon : NULL;
 }
 
@@ -3922,3 +3213,57 @@ void upgrade_mineral(struct cave *c, int y, int x) {
 	}
 }
 
+void cave_jam_door(struct cave *c, int y, int x) {
+	if (cave_islockeddoor(c, y, x))
+		/* become a stuck door of the same strength */
+		c->feat[y][x] += 0x08;
+
+	if (c->feat[y][x] < FEAT_DOOR_TAIL)
+		c->feat[y][x]++;
+}
+
+int cave_can_jam_door(struct cave *c, int y, int x) {
+	return c->feat[y][x] < FEAT_DOOR_TAIL;
+}
+
+int cave_door_power(struct cave *c, int y, int x) {
+	return (c->feat[y][x] - FEAT_DOOR_HEAD) & 0x07;
+}
+
+void cave_open_door(struct cave *c, int y, int x) {
+	c->feat[y][x] = FEAT_OPEN;
+}
+
+void cave_smash_door(struct cave *c, int y, int x) {
+	c->feat[y][x] = FEAT_BROKEN;
+}
+
+void cave_destroy_trap(struct cave *c, int y, int x) {
+	/* XXX: FEAT_TRAP check? */
+	cave_set_feat(cave, y, x, FEAT_FLOOR);
+}
+
+void cave_lock_door(struct cave *c, int y, int x, int power) {
+	c->feat[y][x] = FEAT_DOOR_HEAD + power;
+}
+
+bool cave_hasgoldvein(struct cave *c, int y, int x) {
+	return c->feat[y][x] >= FEAT_MAGMA_H
+	    && c->feat[y][x] <= FEAT_QUARTZ_K;
+}
+
+void cave_tunnel_wall(struct cave *c, int y, int x) {
+	cave_set_feat(c, y, x, FEAT_FLOOR);
+}
+
+void cave_close_door(struct cave *c, int y, int x) {
+	cave_set_feat(c, y, x, FEAT_DOOR_HEAD);
+}
+
+bool cave_isbrokendoor(struct cave *c, int y, int x) {
+	return c->feat[y][x] == FEAT_BROKEN;
+}
+
+bool cave_isglyph(struct cave *c, int y, int x) {
+	return c->feat[y][x] == FEAT_GLYPH;
+}
