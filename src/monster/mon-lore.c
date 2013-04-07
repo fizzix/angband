@@ -1866,17 +1866,32 @@ static void describe_monster_movement(const monster_race *r_ptr,
 		if (r_ptr->speed != 110) text_out(", and");
 	}
 
-	/* Speed */
+	/* Speed 
+	 * Range definitions
+	 * X < 90         : incredibly slowly
+	 * 90 <= X < 100  : very slowly
+	 * 100 <= X < 105 : slowly
+	 * 105 <= X < 110 : somewhat slowly
+	 * X = 110        : at normal speed
+	 * 110 < X <= 115 : somewhat quickly
+	 * 115 < X <= 120 : quickly
+	 * 120 < X <= 125 : very quickly
+	 * 125 < X <= 130 : incredibly quickly
+	 * 130 < X        : unbelievably slowly	 
+	 */
 	if (r_ptr->speed > 110)
 	{
-		if (r_ptr->speed > 130) text_out_c(TERM_GREEN, " incredibly");
-		else if (r_ptr->speed > 120) text_out_c(TERM_GREEN, " very");
+		if (r_ptr->speed >  130) text_out_c(TERM_GREEN, " unbelievably");
+		else if (r_ptr->speed >  125) text_out_c(TERM_GREEN, " extremely");
+		else if (r_ptr->speed >  120) text_out_c(TERM_GREEN, " very");
+		else if (r_ptr->speed <=  115) text_out_c(TERM_GREEN, " somewhat");
 		text_out_c(TERM_GREEN, " quickly");
 	}
 	else if (r_ptr->speed < 110)
 	{
-		if (r_ptr->speed < 90) text_out_c(TERM_GREEN, " incredibly");
-		else if (r_ptr->speed < 100) text_out_c(TERM_GREEN, " very");
+		if (r_ptr->speed <  90) text_out_c(TERM_GREEN, " incredibly");
+		if (r_ptr->speed <  100) text_out_c(TERM_GREEN, " very");
+		else if (r_ptr->speed >= 105) text_out_c(TERM_GREEN, " somewhat");
 		text_out_c(TERM_GREEN, " slowly");
 	}
 	else
