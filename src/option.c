@@ -31,20 +31,23 @@ const int option_page[OPT_PAGE_MAX][OPT_PAGE_PER] =
 		OPT_pickup_inven,
 		OPT_easy_open,
 		OPT_center_player,
-		OPT_view_yellow_light,
-		OPT_hp_changes_color,
-		OPT_animate_flicker,
-		OPT_purple_uniques,
 		OPT_show_flavors,
 		OPT_mouse_movement,
 		OPT_mouse_buttons,
 		OPT_use_sound,
 		OPT_show_damage,
+		OPT_view_yellow_light,
+		OPT_animate_flicker,
+		OPT_NONE,
+		OPT_NONE,
 		OPT_NONE,
 	},
 
+
 	/* Warning */
 	{
+		OPT_hp_changes_color,
+		OPT_purple_uniques,
 		OPT_disturb_move,
 		OPT_disturb_near,
 		OPT_disturb_detect,
@@ -59,16 +62,12 @@ const int option_page[OPT_PAGE_MAX][OPT_PAGE_PER] =
 		OPT_NONE,
 		OPT_NONE,
 		OPT_NONE,
-		OPT_NONE,
-		OPT_NONE,
 	},
 
 	/* Birth/Difficulty */
 	{
-		OPT_birth_maximize,
 		OPT_birth_randarts,
 		OPT_birth_keep_randarts,
-		OPT_birth_ai_smell,
 		OPT_birth_ai_packs,
 		OPT_birth_ai_learn,
 		OPT_birth_ai_cheat,
@@ -81,6 +80,8 @@ const int option_page[OPT_PAGE_MAX][OPT_PAGE_PER] =
 		OPT_birth_no_stairs,
 		OPT_birth_no_feelings,
 		OPT_birth_no_selling,
+		OPT_NONE,
+		OPT_NONE,
 	},
 
 	/* Cheat */
@@ -164,7 +165,7 @@ static const struct option options[OPT_MAX] =
 { NULL,                  NULL,                                          FALSE }, /* 47 */
 { NULL,                  NULL,                                          FALSE }, /* 48 */
 { NULL,                  NULL,                                          FALSE }, /* 49 */
-{ "birth_maximize",      "Maximise effect of race/class bonuses",       TRUE },  /* 50 */
+{ NULL,                  NULL,                                          FALSE }, /* 50 */
 { "birth_randarts",      "Randomise the artifacts (except a very few)", FALSE }, /* 51 */
 { "birth_no_recall",     "Word of Recall has no effect",                FALSE }, /* 52 */
 { "birth_small_range",   "Halve view and spell distances",              FALSE }, /* 53 */
@@ -175,7 +176,7 @@ static const struct option options[OPT_MAX] =
 { "birth_no_feelings",   "Don't show level feelings",                   FALSE }, /* 58 */
 { "birth_no_selling",    "Items always sell for 0 gold",                FALSE }, /* 59 */
 { "birth_keep_randarts", "Use previous set of randarts",                TRUE },  /* 60 */
-{ "birth_ai_smell",      "Monsters chase recent locations",             TRUE },  /* 61 */
+{ NULL,                  NULL,                                          FALSE }, /* 61 */
 { "birth_ai_packs",      "Monsters act smarter in groups",              TRUE },  /* 62 */
 { "birth_ai_learn",      "Monsters learn from their mistakes",          FALSE }, /* 63 */
 { "birth_ai_cheat",      "Monsters exploit player's weaknesses",        FALSE }, /* 64 */

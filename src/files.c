@@ -1124,19 +1124,29 @@ errr file_character(const char *path, bool full)
 	file_putf(fp, "  [Options]\n\n");
 
 	/* Dump options */
-	for (i = OPT_BIRTH; i < OPT_BIRTH + N_OPTS_BIRTH; i++)
-	{
-		if (option_name(i))
-		{
-			file_putf(fp, "%-45s: %s (%s)\n",
-			        option_desc(i),
-			        op_ptr->opt[i] ? "yes" : "no ",
-			        option_name(i));
+	for (i = 0; i < OPT_PAGE_MAX - 1; i++) {
+		int j;
+		const char *title;
+		switch (i) {
+			case 0: title = "Interface"; break;
+			case 1: title = "Warning"; break;
+			case 2: title = "Birth"; break;
 		}
-	}
 
-	/* Skip some lines */
-	file_putf(fp, "\n\n");
+		file_putf(fp, "  [%s]\n\n", title);
+		for (j = 0; j < OPT_PAGE_PER; j++) {
+			int opt = option_page[i][j];
+			if (!option_name(opt)) continue;
+
+			file_putf(fp, "%-45s: %s (%s)\n",
+			        option_desc(opt),
+			        op_ptr->opt[opt] ? "yes" : "no ",
+			        option_name(opt));
+		}
+
+		/* Skip some lines */
+		file_putf(fp, "\n");
+	}
 
 	file_close(fp);
 
@@ -1644,78 +1654,6 @@ void do_cmd_help(void)
 
 	/* Load screen */
 	screen_load();
-}
-
-
-
-/*
- * Process the player name and extract a clean "base name".
- *
- * If "sf" is TRUE, then we initialize "savefile" based on player name.
- *
- * Some platforms (Windows, Macintosh, Amiga) leave the "savefile" empty
- * when a new character is created, and then when the character is done
- * being created, they call this function to choose a new savefile name.
- *
- * This also now handles the turning on and off of the automatic
- * sequential numbering of character names with Roman numerals.  
- */
-void process_player_name(bool sf)
-{
-	int i;
-
-	/* Process the player name */
-	for (i = 0; op_ptr->full_name[i]; i++)
-	{
-		char c = op_ptr->full_name[i];
-
-		/* No control characters */
-		if (iscntrl((unsigned char)c))
-		{
-			/* Illegal characters */
-			quit_fmt("Illegal control char (0x%02X) in player name", c);
-		}
-
-		/* Convert all non-alphanumeric symbols */
-		if (!isalpha((unsigned char)c) && !isdigit((unsigned char)c)) c = '_';
-
-		/* Build "base_name" */
-		op_ptr->base_name[i] = c;
-	}
-
-#if defined(WINDOWS)
-
-	/* Max length */
-	if (i > 8) i = 8;
-
-#endif
-
-	/* Terminate */
-	op_ptr->base_name[i] = '\0';
-
-	/* Require a "base" name */
-	if (!op_ptr->base_name[0])
-	{
-		my_strcpy(op_ptr->base_name, "PLAYER", sizeof(op_ptr->base_name));
-	}
-
-
-	/* Pick savefile name if needed */
-	if (sf)
-	{
-		char temp[128];
-
-#if defined(SET_UID)
-		/* Rename the savefile, using the player_uid and base_name */
-		strnfmt(temp, sizeof(temp), "%d.%s", player_uid, op_ptr->base_name);
-#else
-		/* Rename the savefile, using the base name */
-		strnfmt(temp, sizeof(temp), "%s", op_ptr->base_name);
-#endif
-
-		/* Build the filename */
-		path_build(savefile, sizeof(savefile), ANGBAND_DIR_SAVE, temp);
-	}
 }
 
 

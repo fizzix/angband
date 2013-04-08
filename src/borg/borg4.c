@@ -402,11 +402,9 @@ static void borg_notice_aux1(void)
 
         add = my_stat_add[i];
 
-        if (op_ptr->opt[OPT_birth_maximize])
-        {
-            /* Modify the stats for race/class */
-            add += (p_ptr->race->r_adj[i] + p_ptr->class->c_adj[i]);
-        }
+        /* Modify the stats for race/class */
+        add += (p_ptr->race->r_adj[i] + p_ptr->class->c_adj[i]);
+
         /* Extract the new "use_stat" value for the stat */
         use = modify_stat_value(my_stat_cur[i], add);
 
@@ -1771,28 +1769,22 @@ static void borg_notice_aux2(void)
         borg_skill[BI_AFUEL] += 1000;
 
     /* No need to *buy* stat increase potions */
-    if (my_stat_cur[A_STR] >= (18+100) + 10 * op_ptr->opt[OPT_birth_maximize] *
-        (p_ptr->race->r_adj[A_STR] + p_ptr->class->c_adj[A_STR]))
+    if (my_stat_cur[A_STR] >= (18+100) + 10 * (p_ptr->race->r_adj[A_STR] + p_ptr->class->c_adj[A_STR]))
         amt_add_stat[A_STR] += 1000;
 
-    if (my_stat_cur[A_INT] >= (18+100) + 10 * op_ptr->opt[OPT_birth_maximize] *
-        (p_ptr->race->r_adj[A_INT] + p_ptr->class->c_adj[A_INT]))
+    if (my_stat_cur[A_INT] >= (18+100) + 10 * (p_ptr->race->r_adj[A_INT] + p_ptr->class->c_adj[A_INT]))
          amt_add_stat[A_INT] += 1000;
 
-    if (my_stat_cur[A_WIS] >= (18+100) + 10 * op_ptr->opt[OPT_birth_maximize] *
-        (p_ptr->race->r_adj[A_WIS] + p_ptr->class->c_adj[A_WIS]))
+    if (my_stat_cur[A_WIS] >= (18+100) + 10 * (p_ptr->race->r_adj[A_WIS] + p_ptr->class->c_adj[A_WIS]))
         amt_add_stat[A_WIS] += 1000;
 
-    if (my_stat_cur[A_DEX] >= (18+100) + 10 * op_ptr->opt[OPT_birth_maximize] *
-        (p_ptr->race->r_adj[A_DEX] + p_ptr->class->c_adj[A_DEX]))
+    if (my_stat_cur[A_DEX] >= (18+100) + 10 * (p_ptr->race->r_adj[A_DEX] + p_ptr->class->c_adj[A_DEX]))
          amt_add_stat[A_DEX] += 1000;
 
-    if (my_stat_cur[A_CON] >= (18+100) + 10 * op_ptr->opt[OPT_birth_maximize] *
-        (p_ptr->race->r_adj[A_CON] + p_ptr->class->c_adj[A_CON]))
+    if (my_stat_cur[A_CON] >= (18+100) + 10 * (p_ptr->race->r_adj[A_CON] + p_ptr->class->c_adj[A_CON]))
         amt_add_stat[A_CON] += 1000;
 
-    if (my_stat_cur[A_CHR] >= (18+100) + 10 * op_ptr->opt[OPT_birth_maximize] *
-        (p_ptr->race->r_adj[A_CHR] + p_ptr->class->c_adj[A_CHR]))
+    if (my_stat_cur[A_CHR] >= (18+100) + 10 * (p_ptr->race->r_adj[A_CHR] + p_ptr->class->c_adj[A_CHR]))
          amt_add_stat[A_CHR] += 1000;
 
     /* No need to *buy* stat repair potions */
@@ -8940,7 +8932,7 @@ int borg_danger(int y, int x, int c, bool average, bool full_damage)
  * Note that we ignore "restock" issues for the first several turns
  * on each level, to prevent repeated "level bouncing".
  */
-char *borg_restock(int depth)
+const char *borg_restock(int depth)
 {
 
     /* We are now looking at our preparedness */
@@ -9064,18 +9056,18 @@ char *borg_restock(int depth)
 /*
  * Determine if the Borg meets the "minimum" requirements for a level
  */
-static char *borg_prepared_aux(int depth)
+static const char *borg_prepared_aux(int depth)
 {
     if ( -1 == borg_ready_morgoth)
         borg_ready_morgoth = 0;
     if (borg_skill[BI_KING])
         {
             borg_ready_morgoth = 1;
-            return ((char *)NULL);
+            return (NULL);
         }
 
     /* Always ready for the town */
-    if (!depth) return ((char *)NULL);
+    if (!depth) return (NULL);
 
 
     /*** Essential Items for Level 1 ***/
@@ -9497,9 +9489,9 @@ static char borg_prepared_buffer[MAX_REASON];
  * This now returns a string with the reason you are not prepared.
  *
  */
-char *borg_prepared(int depth)
+const char *borg_prepared(int depth)
 {
-    char *reason;
+    const char *reason;
 
     /* Town and First level */
     if (depth == 1) return ((char *)NULL);

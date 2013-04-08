@@ -85,7 +85,7 @@ extern const int option_page[OPT_PAGE_MAX][OPT_PAGE_PER];
 #define OPT_score_know				(OPT_SCORE+4)
 #define OPT_score_live				(OPT_SCORE+5)
 
-#define OPT_birth_maximize          (OPT_BIRTH+0)
+/* #define OPT_birth_maximize          (OPT_BIRTH+0) */
 #define OPT_birth_randarts          (OPT_BIRTH+1)
 #define OPT_birth_no_recall           (OPT_BIRTH+2)
 #define OPT_birth_small_range         (OPT_BIRTH+3)
@@ -96,7 +96,7 @@ extern const int option_page[OPT_PAGE_MAX][OPT_PAGE_PER];
 #define OPT_birth_no_feelings	    (OPT_BIRTH+8)
 #define OPT_birth_no_selling 	    (OPT_BIRTH+9)
 #define OPT_birth_keep_randarts		(OPT_BIRTH+10)
-#define OPT_birth_ai_smell			(OPT_BIRTH+11)
+/* #define OPT_birth_ai_smell			(OPT_BIRTH+11) */
 #define OPT_birth_ai_packs			(OPT_BIRTH+12)
 #define OPT_birth_ai_learn			(OPT_BIRTH+13)
 #define OPT_birth_ai_cheat			(OPT_BIRTH+14)
