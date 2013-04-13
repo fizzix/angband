@@ -568,8 +568,6 @@ static ui_event target_set_interactive_aux(int y, int x, int mode)
 
 	bool boring;
 
-	int feat;
-
 	int floor_list[MAX_FLOOR_STACK];
 	int floor_num;
 
@@ -579,6 +577,8 @@ static ui_event target_set_interactive_aux(int y, int x, int mode)
 	char out_val[256];
 
 	char coords[20];
+
+	const char *name;
 
 	/* Describe the square location */
 	coords_desc(coords, sizeof(coords), y, x);
@@ -941,33 +941,21 @@ static ui_event target_set_interactive_aux(int y, int x, int mode)
 		/* Double break */
 		if (this_o_idx) break;
 
-
-		/* Feature (apply "mimic") */
-		feat = f_info[cave->feat[y][x]].mimic;
-
-		/* Require knowledge about grid, or ability to see grid */
-		if (!(cave->info[y][x] & (CAVE_MARK)) && !player_can_see_bold(y,x))
-		{
-			/* Forget feature */
-			feat = FEAT_NONE;
-		}
+		name = cave_apparent_name(cave, p_ptr, y, x);
 
 		/* Terrain feature if needed */
-		if (boring || (feat > FEAT_INVIS))
+		if (boring || cave_isinteresting(cave, y, x))
 		{
-			const char *name = f_info[feat].name;
-
 			/* Hack -- handle unknown grids */
-			if (feat == FEAT_NONE) name = "unknown grid";
 
 			/* Pick a prefix */
-			if (*s2 && (feat >= FEAT_DOOR_HEAD)) s2 = "in ";
+			if (*s2 && cave_isdoor(cave, y, x)) s2 = "in ";
 
 			/* Pick proper indefinite article */
 			s3 = (is_a_vowel(name[0])) ? "an " : "a ";
 
 			/* Hack -- special introduction for store doors */
-			if (feature_isshop(feat))
+			if (cave_isshop(cave, y, x))
 			{
 				s3 = "the entrance to the ";
 			}
@@ -1090,7 +1078,7 @@ bool target_set_closest(int mode)
  * The first two result from information being lost from the dungeon arrays,
  * which requires changes elsewhere
  */
-static int draw_path(u16b path_n, u16b *path_g, wchar_t *c, byte *a, int y1, int x1)
+static int draw_path(u16b path_n, u16b *path_g, wchar_t *c, int *a, int y1, int x1)
 {
 	int i;
 	bool on_screen;
@@ -1170,7 +1158,7 @@ static int draw_path(u16b path_n, u16b *path_g, wchar_t *c, byte *a, int y1, int
  * Load the attr/char at each point along "path" which is on screen from
  * "a" and "c". This was saved in draw_path().
  */
-static void load_path(u16b path_n, u16b *path_g, wchar_t *c, byte *a) {
+static void load_path(u16b path_n, u16b *path_g, wchar_t *c, int *a) {
 	int i;
 	for (i = 0; i < path_n; i++) {
 		int y = GRID_Y(path_g[i]);
@@ -1252,7 +1240,7 @@ bool target_set_interactive(int mode, int x, int y)
 
 	/* These are used for displaying the path to the target */
 	wchar_t path_char[MAX_RANGE_LGE];
-	byte path_attr[MAX_RANGE_LGE];
+	int path_attr[MAX_RANGE_LGE];
 	struct point_set *targets;
 
 	/* If we haven't been given an initial location, start on the

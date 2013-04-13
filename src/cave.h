@@ -69,6 +69,7 @@ extern struct cave *cave;
 extern struct cave *cave_new(void);
 extern void cave_free(struct cave *c);
 
+extern struct feature *cave_feat(struct cave *c, int y, int x);
 extern void cave_set_feat(struct cave *c, int y, int x, int feat);
 extern void cave_note_spot(struct cave *c, int y, int x);
 extern void cave_light_spot(struct cave *c, int y, int x);
@@ -89,6 +90,7 @@ extern bool cave_isperm(struct cave *c, int y, int x);
 extern bool cave_ismagma(struct cave *c, int y, int x);
 extern bool cave_isquartz(struct cave *c, int y, int x);
 extern bool cave_ismineral(struct cave *c, int y, int x);
+extern bool cave_hassecretvein(struct cave *c, int y, int x);
 extern bool cave_hasgoldvein(struct cave *c, int y, int x);
 extern bool feat_is_treasure(int feat);
 extern bool cave_issecretdoor(struct cave *c, int y, int x);
@@ -100,6 +102,7 @@ extern bool cave_isbrokendoor(struct cave *c, int y, int x);
 extern bool cave_isdoor(struct cave *c, int y, int x);
 extern bool cave_issecrettrap(struct cave *c, int y, int x);
 extern bool feat_is_known_trap(int feat);
+extern bool feat_is_wall(int feat);
 extern bool cave_isknowntrap(struct cave *c, int y, int x);
 extern bool cave_istrap(struct cave *c, int y, int x);
 extern bool feature_isshop(int feat);
@@ -128,6 +131,22 @@ extern bool cave_isview(struct cave *c, int y, int x);
 extern bool cave_isseen(struct cave *c, int y, int x);
 extern bool cave_wasseen(struct cave *c, int y, int x);
 extern bool cave_isglow(struct cave *c, int y, int x);
+extern bool cave_iswarded(struct cave *c, int y, int x);
+extern bool cave_canward(struct cave *c, int y, int x);
+
+extern bool cave_seemslikewall(struct cave *c, int y, int x);
+/* interesting to memorize when mapping */
+extern bool cave_isinteresting(struct cave *c, int y, int x);
+/* noticeable when running */
+extern bool cave_noticeable(struct cave *c, int y, int x);
+
+/* Feature placers */
+extern void cave_add_trap(struct cave *c, int y, int x);
+extern void cave_add_ward(struct cave *c, int y, int x);
+extern void cave_add_stairs(struct cave *c, int y, int x, int depth);
+extern void cave_add_door(struct cave *c, int y, int x, bool closed);
+
+extern void cave_remove_ward(struct cave *c, int y, int x);
 
 extern void cave_generate(struct cave *c, struct player *p);
 
@@ -141,16 +160,35 @@ extern int cave_monster_count(struct cave *c);
 
 void upgrade_mineral(struct cave *c, int y, int x);
 
+/* Feature modifiers */
 void cave_jam_door(struct cave *c, int y, int x);
+void cave_unjam_door(struct cave *c, int y, int x);
 int cave_can_jam_door(struct cave *c, int y, int x);
 int cave_door_power(struct cave *c, int y, int x);
 void cave_open_door(struct cave *c, int y, int x);
 void cave_close_door(struct cave *c, int y, int x);
 void cave_smash_door(struct cave *c, int y, int x);
 void cave_lock_door(struct cave *c, int y, int x, int power);
+void cave_unlock_door(struct cave *c, int y, int x);
+void cave_destroy_door(struct cave *c, int y, int x);
 
+void cave_show_trap(struct cave *c, int y, int x, int type);
 void cave_destroy_trap(struct cave *c, int y, int x);
 
 void cave_tunnel_wall(struct cave *c, int y, int x);
+void cave_destroy_wall(struct cave *c, int y, int x);
+
+void cave_show_vein(struct cave *c, int y, int x);
+
+/* destroy this cell, as destruction spell */
+void cave_destroy(struct cave *c, int y, int x);
+void cave_earthquake(struct cave *c, int y, int x);
+
+int cave_shopnum(struct cave *c, int y, int x);
+const char *cave_apparent_name(struct cave *c, struct player *p, int y, int x);
+
+void cave_destroy_rubble(struct cave *c, int y, int x);
+
+void cave_force_floor(struct cave *c, int y, int x);
 
 #endif /* !CAVE_H */

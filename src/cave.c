@@ -336,7 +336,7 @@ bool cave_valid_bold(int y, int x)
 /*
  * Hack -- Hallucinatory monster
  */
-static void hallucinatory_monster(byte *a, wchar_t *c)
+static void hallucinatory_monster(int *a, wchar_t *c)
 {
 	while (1)
 	{
@@ -357,7 +357,7 @@ static void hallucinatory_monster(byte *a, wchar_t *c)
 /*
  * Hack -- Hallucinatory object
  */
-static void hallucinatory_object(byte *a, wchar_t *c)
+static void hallucinatory_object(int *a, wchar_t *c)
 {
 	
 	while (1)
@@ -434,36 +434,50 @@ bool dtrap_edge(int y, int x)
 /**
  * Apply text lighting effects
  */
-static void grid_get_attr(grid_data *g, byte *a)
+static void grid_get_attr(grid_data *g, int *a)
 {
-	/* Save the high-bit, since it's used for attr inversion. */
-	byte a0 = *a & 0x80;
+	/* Save the high-bit, since it's used for attr inversion in GCU */
+	int a0 = *a & 0x80;
 
 	/* We will never tint traps or treasure */
-	if (feat_is_known_trap(g->f_idx) || feat_is_treasure(g->f_idx)) return;
+	if (feat_is_known_trap(g->f_idx)) return;
 
-	/* Tint the trap detection edge green. */
-	if (g->trapborder) {
-		*a = a0 | (g->in_view ? TERM_L_GREEN : TERM_GREEN);
-		return;
-	}
+	/* Remove the high bit so we can add it back again at the end */
+	*a = (*a & 0x7F);
 
-	/* If the square isn't white we won't apply any other lighting effects. */
-	if ((*a & 0x7F) != TERM_WHITE) return;
+	/* Never play with fg colours for treasure */
+	if (!feat_is_treasure(g->f_idx)) {
 
-	/* If it's a floor tile then we'll tint based on lighting. */
-	if (g->f_idx == FEAT_FLOOR) {
-		switch (g->lighting) {
-			case FEAT_LIGHTING_BRIGHT: *a = a0 | TERM_YELLOW; break;
-			case FEAT_LIGHTING_DARK: *a = a0 | TERM_L_DARK; break;
-			default: break;
+		/* Tint trap detection borders */
+		if (g->trapborder)
+			*a = (g->in_view ? TERM_L_GREEN : TERM_GREEN);
+
+		/* Only apply lighting effects when the attr is white --
+		 * this is to stop e.g. doors going grey when out of LOS */
+		if (*a == TERM_WHITE) {
+			/* If it's a floor tile then we'll tint based on lighting. */
+			if (g->f_idx == FEAT_FLOOR)
+				switch (g->lighting) {
+					case FEAT_LIGHTING_BRIGHT: *a = TERM_YELLOW; break;
+					case FEAT_LIGHTING_DARK: *a = TERM_L_DARK; break;
+					default: break;
+				}
+
+			/* If it's another kind of tile, only tint when unlit. */
+			else if (g->f_idx > FEAT_INVIS && g->lighting == FEAT_LIGHTING_DARK)
+				*a = TERM_SLATE;
 		}
-		return;
 	}
 
-	/* If it's another kind of tile, only tint when unlit. */
-	if (g->f_idx > FEAT_INVIS && g->lighting == FEAT_LIGHTING_DARK)
-		*a = a0 | TERM_SLATE;
+	/* Hybrid or block walls -- for GCU, then for everyone else */
+	if (a0) {
+		*a = a0 | *a;
+	} else if (use_graphics == GRAPHICS_NONE && feat_is_wall(g->f_idx)) {
+		if (OPT(hybrid_walls))
+			*a = *a + (MAX_COLORS * BG_DARK);
+		else if (OPT(solid_walls))
+			*a = *a + (MAX_COLORS * BG_SAME);
+	}
 }
 
 
@@ -502,11 +516,11 @@ static void grid_get_attr(grid_data *g, byte *a)
  * This will probably be done outside of the current text->graphics mappings
  * though.
  */
-void grid_data_as_text(grid_data *g, byte *ap, wchar_t *cp, byte *tap, wchar_t *tcp)
+void grid_data_as_text(grid_data *g, int *ap, wchar_t *cp, int *tap, wchar_t *tcp)
 {
 	feature_type *f_ptr = &f_info[g->f_idx];
 
-	byte a = f_ptr->x_attr[g->lighting];
+	int a = f_ptr->x_attr[g->lighting];
 	wchar_t c = f_ptr->x_char[g->lighting];
 
 	/* Check for trap detection boundaries */
@@ -1108,10 +1122,8 @@ void cave_light_spot(struct cave *c, int y, int x)
 
 static void prt_map_aux(void)
 {
-	byte a;
-	wchar_t c;
-	byte ta;
-	wchar_t tc;
+	int a, ta;
+	wchar_t c, tc;
 	grid_data g;
 
 	int y, x;
@@ -1169,10 +1181,8 @@ static void prt_map_aux(void)
  */
 void prt_map(void)
 {
-	byte a;
-	wchar_t c;
-	byte ta;
-	wchar_t tc;
+	int a, ta;
+	wchar_t c, tc;
 	grid_data g;
 
 	int y, x;
@@ -1237,7 +1247,7 @@ void display_map(int *cy, int *cx)
 	int x, y;
 	grid_data g;
 
-	byte ta;
+	int a, ta;
 	wchar_t tc;
 
 	byte tp;
@@ -1263,6 +1273,7 @@ void display_map(int *cy, int *cx)
 
 
 	/* Nothing here */
+	a = TERM_WHITE;
 	ta = TERM_WHITE;
 	tc = L' ';
 
@@ -1304,7 +1315,7 @@ void display_map(int *cy, int *cx)
 			{
 				/* Hack - make every grid on the map lit */
 				g.lighting = FEAT_LIGHTING_LIT; /*FEAT_LIGHTING_BRIGHT;*/
-				grid_data_as_text(&g, &ta, &tc, &ta, &tc);
+				grid_data_as_text(&g, &a, &tc, &ta, &tc);
 
 				/* Add the character */
 				Term_putch(col + 1, row + 1, ta, tc);
@@ -2361,6 +2372,15 @@ void cave_illuminate(struct cave *c, bool daytime)
 	p_ptr->redraw |= (PR_MAP | PR_MONLIST | PR_ITEMLIST);
 }
 
+struct feature *cave_feat(struct cave *c, int y, int x)
+{
+	assert(c);
+	assert(y >= 0 && y < DUNGEON_HGT);
+	assert(x >= 0 && x < DUNGEON_WID);
+
+	return &f_info[cave->feat[y][x]];
+}
+
 void cave_set_feat(struct cave *c, int y, int x, int feat)
 {
 	assert(c);
@@ -2977,8 +2997,9 @@ bool cave_isjammeddoor(struct cave *c, int y, int x) {
  */
 bool cave_isdoor(struct cave *c, int y, int x) {
 	return (cave_isopendoor(c, y, x) ||
-			cave_issecretdoor(c, y, x) ||
-			cave_iscloseddoor(cave, y, x));
+		cave_issecretdoor(c, y, x) ||
+		cave_iscloseddoor(c, y, x) ||
+		cave_isbrokendoor(c, y, x));
 }
 
 /**
@@ -2993,6 +3014,14 @@ bool cave_issecrettrap(struct cave *c, int y, int x) {
  */
 bool feat_is_known_trap(int feat) {
 	return feat >= FEAT_TRAP_HEAD && feat <= FEAT_TRAP_TAIL;
+}
+
+/**
+ * True is the feature is a solid wall (not rubble).
+ */
+bool feat_is_wall(int feat) {
+	return feat >= FEAT_SECRET && feat <= FEAT_PERM_SOLID &&
+			feat != FEAT_RUBBLE;
 }
 
 /**
@@ -3042,6 +3071,10 @@ bool cave_isdownstairs(struct cave *c, int y, int x) {
  */
 bool cave_isshop(struct cave *c, int y, int x) {
 	return feature_isshop(c->feat[y][x]);
+}
+
+int cave_shopnum(struct cave *c, int y, int x) {
+	return c->feat[y][x] - FEAT_SHOP_HEAD;
 }
 
 /**
@@ -3222,6 +3255,11 @@ void cave_jam_door(struct cave *c, int y, int x) {
 		c->feat[y][x]++;
 }
 
+void cave_unjam_door(struct cave *c, int y, int x) {
+	if (c->feat[y][x] > FEAT_DOOR_HEAD + 0x08)
+		c->feat[y][x]--;
+}
+
 int cave_can_jam_door(struct cave *c, int y, int x) {
 	return c->feat[y][x] < FEAT_DOOR_TAIL;
 }
@@ -3256,6 +3294,10 @@ void cave_tunnel_wall(struct cave *c, int y, int x) {
 	cave_set_feat(c, y, x, FEAT_FLOOR);
 }
 
+void cave_destroy_wall(struct cave *c, int y, int x) {
+	cave_set_feat(c, y, x, FEAT_FLOOR);
+}
+
 void cave_close_door(struct cave *c, int y, int x) {
 	cave_set_feat(c, y, x, FEAT_DOOR_HEAD);
 }
@@ -3266,4 +3308,142 @@ bool cave_isbrokendoor(struct cave *c, int y, int x) {
 
 bool cave_isglyph(struct cave *c, int y, int x) {
 	return c->feat[y][x] == FEAT_GLYPH;
+}
+
+void cave_show_trap(struct cave *c, int y, int x, int type) {
+	assert(cave_issecrettrap(c, y, x));
+	c->feat[y][x] = FEAT_TRAP_HEAD + type;
+}
+
+void cave_add_trap(struct cave *c, int y, int x) {
+	cave_set_feat(c, y, x, FEAT_INVIS);
+}
+
+bool cave_iswarded(struct cave *c, int y, int x) {
+	return c->feat[y][x] == FEAT_GLYPH;
+}
+
+void cave_add_ward(struct cave *c, int y, int x) {
+	cave_set_feat(c, y, x, FEAT_GLYPH);
+}
+
+void cave_remove_ward(struct cave *c, int y, int x) {
+	assert(cave_iswarded(c, y, x));
+	cave_set_feat(c, y, x, FEAT_FLOOR);
+}
+
+bool cave_canward(struct cave *c, int y, int x) {
+	return cave_isfloor(c, y, x);
+}
+
+bool cave_seemslikewall(struct cave *c, int y, int x) {
+	return c->feat[y][x] >= FEAT_SECRET;
+}
+
+bool cave_isinteresting(struct cave *c, int y, int x) {
+	int f = c->feat[y][x];
+	return f != FEAT_FLOOR && f != FEAT_INVIS;
+}
+
+void cave_show_vein(struct cave *c, int y, int x) {
+	if (c->feat[y][x] == FEAT_MAGMA_H)
+		cave_set_feat(c, y, x, FEAT_MAGMA_K);
+	else if (c->feat[y][x] == FEAT_QUARTZ_H)
+		cave_set_feat(c, y, x, FEAT_QUARTZ_K);
+}
+
+void cave_add_stairs(struct cave *c, int y, int x, int depth) {
+	int down = randint0(100) < 50;
+	if (depth == 0)
+		down = 1;
+	else if (is_quest(depth) || depth >= MAX_DEPTH - 1)
+		down = 0;
+	cave_set_feat(c, y, x, down ? FEAT_MORE : FEAT_LESS);
+}
+
+void cave_destroy(struct cave *c, int y, int x) {
+	int feat = FEAT_FLOOR;
+	int r = randint0(200);
+
+	if (r < 20)
+		feat = FEAT_WALL_EXTRA;
+	else if (r < 70)
+		feat = FEAT_QUARTZ;
+	else if (r < 100)
+		feat = FEAT_MAGMA;
+
+	cave_set_feat(cave, y, x, feat);
+}
+
+void cave_earthquake(struct cave *c, int y, int x) {
+	int t = randint0(100);
+	int f;
+
+	if (!cave_ispassable(c, y, x)) {
+		cave_set_feat(c, y, x, FEAT_FLOOR);
+		return;
+	}
+
+	if (t < 20)
+		f = FEAT_WALL_EXTRA;
+	else if (t < 70)
+		f = FEAT_QUARTZ;
+	else
+		f = FEAT_MAGMA;
+	cave_set_feat(c, y, x, f);
+}
+
+bool cave_hassecretvein(struct cave *c, int y, int x) {
+	return c->feat[y][x] == FEAT_MAGMA_H || c->feat[y][x] == FEAT_QUARTZ_H;
+}
+
+bool cave_noticeable(struct cave *c, int y, int x) {
+	if (cave_isfloor(c, y, x))
+		return FALSE;
+	if (cave_issecrettrap(c, y, x) || cave_issecretdoor(c, y, x))
+		return FALSE;
+	if (cave_ismagma(c, y, x) || cave_isquartz(c, y, x))
+		if (!cave_hasgoldvein(c, y, x) || cave_hassecretvein(c, y, x))
+			return FALSE;
+	if (cave_seemslikewall(c, y, x))
+		return FALSE;
+	return TRUE;
+}
+
+const char *cave_apparent_name(struct cave *c, struct player *p, int y, int x) {
+	int f = f_info[c->feat[y][x]].mimic;
+
+	if (!(c->info[y][x] & CAVE_MARK) && !player_can_see_bold(y, x))
+		f = FEAT_NONE;
+
+	if (f == FEAT_NONE)
+		return "unknown_grid";
+	/* XXX: why? FEAT_INVIS already mimics FEAT_FLOOR */
+	if (f == FEAT_INVIS)
+		f = FEAT_FLOOR;
+
+	return f_info[f].name;
+}
+
+void cave_unlock_door(struct cave *c, int y, int x) {
+	assert(cave_islockeddoor(c, y, x));
+	c->feat[y][x] = FEAT_DOOR_HEAD;
+}
+
+void cave_destroy_door(struct cave *c, int y, int x) {
+	assert(cave_isdoor(c, y, x));
+	c->feat[y][x] = FEAT_FLOOR;
+}
+
+void cave_destroy_rubble(struct cave *c, int y, int x) {
+	assert(cave_isrubble(c, y, x));
+	c->feat[y][x] = FEAT_FLOOR;
+}
+
+void cave_add_door(struct cave *c, int y, int x, bool closed) {
+	cave_set_feat(c, y, x, closed ? FEAT_DOOR_HEAD : FEAT_OPEN);
+}
+
+void cave_force_floor(struct cave *c, int y, int x) {
+	cave_set_feat(c, y, x, FEAT_FLOOR);
 }
