@@ -316,7 +316,6 @@ static int borg_min_item_quantity(borg_item *item)
     /* Only allow some types */
     switch (item->tval)
     {
-    case TV_SPIKE:
     case TV_SHOT:
     case TV_ARROW:
     case TV_BOLT:
@@ -2853,7 +2852,7 @@ bool borg_think_dungeon_light(void)
 	           	y = c_y + ddy_ddd[ii];
 
 				/* Bounds check */
-	            if (!in_bounds_fully(y,x)) continue;
+	            if (!cave_in_bounds_fully(cave, y,x)) continue;
 
 	           	/* Access the grid */
 	           	ag = &borg_grids[y][x];
@@ -2893,7 +2892,7 @@ bool borg_think_dungeon_light(void)
 
 
 			/* Bounds check */
-            if (!in_bounds_fully(y,x)) continue;
+            if (!cave_in_bounds_fully(cave, y,x)) continue;
 
            	/* Access the grid */
            	ag = &borg_grids[y][x];
@@ -3999,7 +3998,7 @@ bool borg_think_dungeon_munchkin(void)
 			x = c_x + ddx_ddd[i];
 
 			/* Bounds check */
-			if (!in_bounds(y, x)) continue;
+			if (!cave_in_bounds(cave, y, x)) continue;
 
 			/* Get the grid */
 			ag = &borg_grids[y][x];

@@ -423,10 +423,10 @@ bool dtrap_edge(int y, int x)
  	if (!(cave->info2[y][x] & CAVE2_DTRAP)) return FALSE; 
 
  	/* Check for non-dtrap adjacent grids */ 
- 	if (in_bounds_fully(y + 1, x    ) && (!(cave->info2[y + 1][x    ] & CAVE2_DTRAP))) return TRUE; 
- 	if (in_bounds_fully(y    , x + 1) && (!(cave->info2[y    ][x + 1] & CAVE2_DTRAP))) return TRUE; 
- 	if (in_bounds_fully(y - 1, x    ) && (!(cave->info2[y - 1][x    ] & CAVE2_DTRAP))) return TRUE; 
- 	if (in_bounds_fully(y    , x - 1) && (!(cave->info2[y    ][x - 1] & CAVE2_DTRAP))) return TRUE; 
+ 	if (cave_in_bounds_fully(cave, y + 1, x    ) && (!(cave->info2[y + 1][x    ] & CAVE2_DTRAP))) return TRUE; 
+ 	if (cave_in_bounds_fully(cave, y    , x + 1) && (!(cave->info2[y    ][x + 1] & CAVE2_DTRAP))) return TRUE; 
+ 	if (cave_in_bounds_fully(cave, y - 1, x    ) && (!(cave->info2[y - 1][x    ] & CAVE2_DTRAP))) return TRUE; 
+ 	if (cave_in_bounds_fully(cave, y    , x - 1) && (!(cave->info2[y    ][x - 1] & CAVE2_DTRAP))) return TRUE; 
 
 	return FALSE; 
 }
@@ -1154,7 +1154,7 @@ static void prt_map_aux(void)
 			for (x = t->offset_x, vx = 0; x < tx; vx++, x++)
 			{
 				/* Check bounds */
-				if (!in_bounds(y, x)) continue;
+				if (!cave_in_bounds(cave, y, x)) continue;
 
 				if (vx + tile_width - 1 >= t->wid) continue;
 
@@ -1202,7 +1202,7 @@ void prt_map(void)
 		for (x = Term->offset_x, vx = COL_MAP; x < tx; vx+=tile_width, x++)
 		{
 			/* Check bounds */
-			if (!in_bounds(y, x)) continue;
+			if (!cave_in_bounds(cave, y, x)) continue;
 
 			/* Determine what is there */
 			map_info(y, x, &g);
@@ -1748,8 +1748,8 @@ void forget_view(struct cave *c)
 {
 	int x, y;
 
-	for (y = 0; y < CAVE_INFO_Y; y++) {
-		for (x = 0; x < CAVE_INFO_X; x++) {
+	for (y = 0; y < c->height; y++) {
+		for (x = 0; x < c->width; x++) {
 			if (!cave_isview(c, y, x))
 				continue;
 			c->info[y][x] &= ~(CAVE_VIEW | CAVE_SEEN);
@@ -1850,8 +1850,8 @@ static void mark_wasseen(struct cave *c)
 {
 	int x, y;
 	/* Save the old "view" grids for later */
-	for (y = 0; y < CAVE_INFO_Y; y++) {
-		for (x = 0; x < CAVE_INFO_X; x++) {
+	for (y = 0; y < c->height; y++) {
+		for (x = 0; x < c->width; x++) {
 			if (c->info[y][x] & CAVE_SEEN)
 				c->info[y][x] |= CAVE_WASSEEN;
 			c->info[y][x] &= ~(CAVE_VIEW | CAVE_SEEN);
@@ -1998,14 +1998,14 @@ static void update_view_one(struct cave *c, int y, int x, int radius, int py, in
 		/* Check that we got here via the 'knight's move' rule. If so,
 		 * don't steal LOS. */
 		if (ax == 2 && ay == 1) {
-			if (  !cave_iswall(c, x + sx, y)
-			    && cave_iswall(c, x + sx, y + sy)) {
+			if (  !cave_iswall(c, y, x - sx)
+			    && cave_iswall(c, y - sy, x - sx)) {
 				xc = x;
 				yc = y;
 			}
 		} else if (ax == 1 && ay == 2) {
-			if (  !cave_iswall(c, x, y + sy)
-			    && cave_iswall(c, x + sx, y + sy)) {
+			if (  !cave_iswall(c, y - sy, x)
+			    && cave_iswall(c, y - sy, x - sx)) {
 				xc = x;
 				yc = y;
 			}
@@ -2039,14 +2039,14 @@ void update_view(struct cave *c, struct player *p)
 		c->info[p->py][p->px] |= CAVE_SEEN;
 
 	/* View squares we have LOS to */
-	for (y = 0; y < CAVE_INFO_Y; y++)
-		for (x = 0; x < CAVE_INFO_X; x++)
+	for (y = 0; y < c->height; y++)
+		for (x = 0; x < c->width; x++)
 			update_view_one(cave, y, x, radius, p->py, p->px);
 
 	/*** Step 3 -- Complete the algorithm ***/
 
-	for (y = 0; y < CAVE_INFO_Y; y++)
-		for (x = 0; x < CAVE_INFO_X; x++)
+	for (y = 0; y < c->height; y++)
+		for (x = 0; x < c->width; x++)
 			update_one(c, y, x, p->timed[TMD_BLIND]);
 }
 
@@ -2728,15 +2728,12 @@ bool projectable(int y1, int x1, int y2, int x2, int flg)
  * This function is often called from inside a loop which searches for
  * locations while increasing the "d" distance.
  *
- * Currently the "m" parameter is unused.
+ * need_los determines whether line of sight is needed
  */
-void scatter(int *yp, int *xp, int y, int x, int d, int m)
+void scatter(int *yp, int *xp, int y, int x, int d, bool need_los)
 {
 	int nx, ny;
 
-
-	/* Unused parameter */
-	(void)m;
 
 	/* Pick a location */
 	while (TRUE)
@@ -2746,13 +2743,16 @@ void scatter(int *yp, int *xp, int y, int x, int d, int m)
 		nx = rand_spread(x, d);
 
 		/* Ignore annoying locations */
-		if (!in_bounds_fully(ny, nx)) continue;
+		if (!cave_in_bounds_fully(cave, ny, nx)) continue;
 
 		/* Ignore "excessively distant" locations */
 		if ((d > 1) && (distance(y, x, ny, nx) > d)) continue;
+		
+		/* Don't need los */
+		if (!need_los) break;
 
-		/* Require "line of sight" */
-		if (los(y, x, ny, nx)) break;
+		/* Require "line of sight" if set */
+		if (need_los && (los(y, x, ny, nx))) break;
 	}
 
 	/* Save the location */
@@ -2983,14 +2983,6 @@ bool cave_islockeddoor(struct cave *c, int y, int x) {
 }
 
 /**
- * True if the square is a closed, jammed door.
- */
-bool cave_isjammeddoor(struct cave *c, int y, int x) {
-	int feat = c->feat[y][x];
-	return feat >= FEAT_DOOR_HEAD + 0x08 && feat <= FEAT_DOOR_TAIL;
-}
-
-/**
  * True if the square is a door.
  *
  * This includes open, closed, and hidden doors.
@@ -3130,6 +3122,7 @@ bool feat_ispassable(feature_type *f_ptr) {
  * This function is the logical negation of cave_iswall().
  */
 bool cave_ispassable(struct cave *c, int y, int x) {
+	assert(cave_in_bounds(c, y, x));
 	return feat_ispassable(&f_info[c->feat[y][x]]);
 }
 
@@ -3139,6 +3132,7 @@ bool cave_ispassable(struct cave *c, int y, int x) {
  * This function is the logical negation of cave_ispassable().
  */
 bool cave_iswall(struct cave *c, int y, int x) {
+	assert(cave_in_bounds(c, y, x));
 	return c->info[y][x] & CAVE_WALL;
 }
 
@@ -3149,6 +3143,7 @@ bool cave_iswall(struct cave *c, int y, int x) {
  * secret doors and rubble.
  */
 bool cave_isstrongwall(struct cave *c, int y, int x) {
+	assert(cave_in_bounds(c, y, x));
 	return cave_ismineral(c, y, x) || cave_isperm(c, y, x);
 }
 
@@ -3158,6 +3153,7 @@ bool cave_isstrongwall(struct cave *c, int y, int x) {
  * This doesn't say what kind of square it is, just that it is part of a vault.
  */
 bool cave_isvault(struct cave *c, int y, int x) {
+	assert(cave_in_bounds(c, y, x));
 	return c->info[y][x] & CAVE_VAULT;
 }
 
@@ -3165,6 +3161,7 @@ bool cave_isvault(struct cave *c, int y, int x) {
  * True if the square is part of a room.
  */
 bool cave_isroom(struct cave *c, int y, int x) {
+	assert(cave_in_bounds(c, y, x));
 	return c->info[y][x] & CAVE_ROOM;
 
 }
@@ -3173,23 +3170,28 @@ bool cave_isroom(struct cave *c, int y, int x) {
  * True if cave square is a feeling trigger square 
  */
 bool cave_isfeel(struct cave *c, int y, int x) {
+	assert(cave_in_bounds(c, y, x));
 	return c->info2[y][x] & CAVE2_FEEL;
 }
 
 /* True if the cave square is viewable */
 bool cave_isview(struct cave *c, int y, int x) {
+	assert(cave_in_bounds(c, y, x));
 	return c->info[y][x] & CAVE_VIEW;
 }
 
 bool cave_isseen(struct cave *c, int y, int x) {
+	assert(cave_in_bounds(c, y, x));
 	return c->info[y][x] & CAVE_SEEN;
 }
 
 bool cave_wasseen(struct cave *c, int y, int x) {
+	assert(cave_in_bounds(c, y, x));
 	return c->info[y][x] & CAVE_WASSEEN;
 }
 
 bool cave_isglow(struct cave *c, int y, int x) {
+	assert(cave_in_bounds(c, y, x));
 	return c->info[y][x] & CAVE_GLOW;
 }
 
@@ -3204,6 +3206,7 @@ bool feat_isboring(feature_type *f_ptr) {
  * True if the cave square is "boring".
  */
 bool cave_isboring(struct cave *c, int y, int x) {
+	assert(cave_in_bounds(c, y, x));
 	return feat_isboring(&f_info[c->feat[y][x]]);
 }
 
@@ -3246,34 +3249,16 @@ void upgrade_mineral(struct cave *c, int y, int x) {
 	}
 }
 
-void cave_jam_door(struct cave *c, int y, int x) {
-	if (cave_islockeddoor(c, y, x))
-		/* become a stuck door of the same strength */
-		c->feat[y][x] += 0x08;
-
-	if (c->feat[y][x] < FEAT_DOOR_TAIL)
-		c->feat[y][x]++;
-}
-
-void cave_unjam_door(struct cave *c, int y, int x) {
-	if (c->feat[y][x] > FEAT_DOOR_HEAD + 0x08)
-		c->feat[y][x]--;
-}
-
-int cave_can_jam_door(struct cave *c, int y, int x) {
-	return c->feat[y][x] < FEAT_DOOR_TAIL;
-}
-
 int cave_door_power(struct cave *c, int y, int x) {
 	return (c->feat[y][x] - FEAT_DOOR_HEAD) & 0x07;
 }
 
 void cave_open_door(struct cave *c, int y, int x) {
-	c->feat[y][x] = FEAT_OPEN;
+	cave_set_feat(c, y, x, FEAT_OPEN);
 }
 
 void cave_smash_door(struct cave *c, int y, int x) {
-	c->feat[y][x] = FEAT_BROKEN;
+	cave_set_feat(c, y, x, FEAT_BROKEN);
 }
 
 void cave_destroy_trap(struct cave *c, int y, int x) {
@@ -3282,7 +3267,7 @@ void cave_destroy_trap(struct cave *c, int y, int x) {
 }
 
 void cave_lock_door(struct cave *c, int y, int x, int power) {
-	c->feat[y][x] = FEAT_DOOR_HEAD + power;
+	cave_set_feat(c, y, x, FEAT_DOOR_HEAD + power);
 }
 
 bool cave_hasgoldvein(struct cave *c, int y, int x) {
@@ -3312,7 +3297,7 @@ bool cave_isglyph(struct cave *c, int y, int x) {
 
 void cave_show_trap(struct cave *c, int y, int x, int type) {
 	assert(cave_issecrettrap(c, y, x));
-	c->feat[y][x] = FEAT_TRAP_HEAD + type;
+	cave_set_feat(c, y, x, FEAT_TRAP_HEAD + type);
 }
 
 void cave_add_trap(struct cave *c, int y, int x) {
@@ -3418,26 +3403,23 @@ const char *cave_apparent_name(struct cave *c, struct player *p, int y, int x) {
 
 	if (f == FEAT_NONE)
 		return "unknown_grid";
-	/* XXX: why? FEAT_INVIS already mimics FEAT_FLOOR */
-	if (f == FEAT_INVIS)
-		f = FEAT_FLOOR;
 
 	return f_info[f].name;
 }
 
 void cave_unlock_door(struct cave *c, int y, int x) {
 	assert(cave_islockeddoor(c, y, x));
-	c->feat[y][x] = FEAT_DOOR_HEAD;
+	cave_set_feat(c, y, x, FEAT_DOOR_HEAD);
 }
 
 void cave_destroy_door(struct cave *c, int y, int x) {
 	assert(cave_isdoor(c, y, x));
-	c->feat[y][x] = FEAT_FLOOR;
+	cave_set_feat(c, y, x, FEAT_FLOOR);
 }
 
 void cave_destroy_rubble(struct cave *c, int y, int x) {
 	assert(cave_isrubble(c, y, x));
-	c->feat[y][x] = FEAT_FLOOR;
+	cave_set_feat(c, y, x, FEAT_FLOOR);
 }
 
 void cave_add_door(struct cave *c, int y, int x, bool closed) {

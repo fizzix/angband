@@ -42,6 +42,7 @@ static void remove_old_dump(const char *cur_fname, const char *mark)
 {
 	bool between_marks = FALSE;
 	bool changed = FALSE;
+	bool skip_one = FALSE;
 
 	char buf[1024];
 
@@ -82,22 +83,20 @@ static void remove_old_dump(const char *cur_fname, const char *mark)
 	{
 		/* If we find the start line, turn on */
 		if (!strcmp(buf, start_line))
-		{
 			between_marks = TRUE;
-		}
 
 		/* If we find the finish line, turn off */
 		else if (!strcmp(buf, end_line))
 		{
 			between_marks = FALSE;
+			skip_one = TRUE;
 			changed = TRUE;
 		}
 
-		if (!between_marks)
-		{
-			/* Copy orginal line */
+		if (!between_marks && !skip_one)
 			file_putf(new_file, "%s\n", buf);
-		}
+
+		skip_one = FALSE;
 	}
 
 	/* Close files */
@@ -150,65 +149,6 @@ static void pref_footer(ang_file *fff, const char *mark)
 }
 
 
-/*
- * Write all current options to a user preference file.
- */
-void option_dump(ang_file *fff)
-{
-	int i, j;
-
-	/* Dump options (skip cheat, adult, score) */
-	for (i = 0; i < OPT_CHEAT; i++)
-	{
-		const char *name = option_name(i);
-		if (!name) continue;
-
-		/* Comment */
-		file_putf(fff, "# Option '%s'\n", option_desc(i));
-
-		/* Dump the option */
-		if (op_ptr->opt[i])
-			file_putf(fff, "Y:%s\n", name);
-		else
-			file_putf(fff, "X:%s\n", name);
-
-		/* Skip a line */
-		file_putf(fff, "\n");
-	}
-
-	/* Dump window flags */
-	for (i = 1; i < ANGBAND_TERM_MAX; i++)
-	{
-		/* Require a real window */
-		if (!angband_term[i]) continue;
-
-		/* Check each flag */
-		for (j = 0; j < (int)N_ELEMENTS(window_flag_desc); j++)
-		{
-			/* Require a real flag */
-			if (!window_flag_desc[j]) continue;
-
-			/* Comment */
-			file_putf(fff, "# Window '%s', Flag '%s'\n",
-				angband_term_name[i], window_flag_desc[j]);
-
-			/* Dump the flag */
-			if (op_ptr->window_flag[i] & (1L << j))
-				file_putf(fff, "W:%d:%d:1\n", i, j);
-			else
-				file_putf(fff, "W:%d:%d:0\n", i, j);
-
-			/* Skip a line */
-			file_putf(fff, "\n");
-		}
-	}
-
-	keymap_dump(fff);
-}
-
-
-
-
 /* Dump monsters */
 void dump_monsters(ang_file *fff)
 {
@@ -228,6 +168,21 @@ void dump_monsters(ang_file *fff)
 	}
 }
 
+static void get_pref_name(char *buf, size_t max, const char *name) {
+	size_t j, k;
+	/* Copy across the name, stripping modifiers & and ~) */
+	size_t len = strlen(name);
+	for (j = 0, k = 0; j < len && k < max; j++) {
+		if (j == 0 && name[0] == '&' && name[1] == ' ')
+			j += 2;
+		if (name[j] == '~')
+			continue;
+
+		buf[k++] = name[j];
+	}
+	buf[k] = 0;
+}
+
 /* Dump objects */
 void dump_objects(ang_file *fff)
 {
@@ -239,24 +194,28 @@ void dump_objects(ang_file *fff)
 	{
 		object_kind *k_ptr = &k_info[i];
 		char name[120] = "";
-		size_t j, k, len;
 
 		if (!k_ptr->name || !k_ptr->tval) continue;
 
-		/* Copy across the name, stripping modifiers & and ~) */
-		len = strlen(k_ptr->name);
-		for (j = 0, k = 0; j < len && k < sizeof name; j++) {
-			if (j == 0 && k_ptr->name[0] == '&' && k_ptr->name[1] == ' ')
-				j += 2;
-			if (k_ptr->name[j] == '~')
-				continue;
-
-			name[k++] = k_ptr->name[j];
-		}
-		name[k] = 0;
-
+		get_pref_name(name, sizeof name, k_ptr->name);
 		file_putf(fff, "K:%s:%s:%d:%d\n", tval_find_name(k_ptr->tval),
 				name, k_ptr->x_attr, k_ptr->x_char);
+	}
+}
+
+void dump_autoinscriptions(ang_file *f) {
+	int i;
+	for (i = 1; i < z_info->k_max; i++) {
+		struct object_kind *k = &k_info[i];
+		char name[120];
+		const char *note;
+
+		if (!k->name || !k->tval) continue;
+		note = get_autoinscription(k);
+		if (note) {
+			get_pref_name(name, sizeof name, k->name);
+			file_putf(f, "inscribe:%s:%s:%s\n", tval_find_name(k->tval), name, note);
+		}
 	}
 }
 
@@ -366,12 +325,11 @@ bool prefs_save(const char *path, void (*dump)(ang_file *), const char *title)
 
 	/* Append the header */
 	pref_header(fff, title);
-	file_putf(fff, "\n\n");
-	file_putf(fff, "# %s definitions\n\n", strstr(title, " "));
+	file_putf(fff, "\n");
 
 	dump(fff);
 
-	file_putf(fff, "\n\n\n");
+	file_putf(fff, "\n");
 	pref_footer(fff, title);
 	file_close(fff);
 
@@ -856,19 +814,28 @@ static enum parser_error parse_prefs_q(struct parser *p)
 	return PARSE_ERROR_NONE;
 }
 
-static enum parser_error parse_prefs_b(struct parser *p)
+static enum parser_error parse_prefs_inscribe(struct parser *p)
 {
-	int idx;
+	int tvi, svi;
+	object_kind *kind;
 
 	struct prefs_data *d = parser_priv(p);
 	assert(d != NULL);
 	if (d->bypass) return PARSE_ERROR_NONE;
 
-	idx = parser_getuint(p, "idx");
-	if (idx > z_info->k_max)
-		return PARSE_ERROR_OUT_OF_BOUNDS;
+	tvi = tval_find_idx(parser_getsym(p, "tval"));
+	if (tvi < 0)
+		return PARSE_ERROR_UNRECOGNISED_TVAL;
 
-	add_autoinscription(idx, parser_getstr(p, "text"));
+	svi = lookup_sval(tvi, parser_getsym(p, "sval"));
+	if (svi < 0)
+		return PARSE_ERROR_UNRECOGNISED_SVAL;
+
+	kind = lookup_kind(tvi, svi);
+	if (!kind)
+		return PARSE_ERROR_UNRECOGNISED_SVAL;
+
+	add_autoinscription(kind->kidx, parser_getstr(p, "text"));
 
 	return PARSE_ERROR_NONE;
 }
@@ -993,7 +960,6 @@ static enum parser_error parse_prefs_x(struct parser *p)
 	assert(d != NULL);
 	if (d->bypass) return PARSE_ERROR_NONE;
 
-	/* XXX check for valid option */
 	option_set(parser_getstr(p, "option"), FALSE);
 
 	return PARSE_ERROR_NONE;
@@ -1006,6 +972,17 @@ static enum parser_error parse_prefs_y(struct parser *p)
 	if (d->bypass) return PARSE_ERROR_NONE;
 
 	option_set(parser_getstr(p, "option"), TRUE);
+
+	return PARSE_ERROR_NONE;
+}
+
+static enum parser_error parse_prefs_o(struct parser *p)
+{
+	struct prefs_data *d = parser_priv(p);
+	assert(d != NULL);
+	if (d->bypass) return PARSE_ERROR_NONE;
+
+	option_set(parser_getsym(p, "name"), parser_getuint(p, "value"));
 
 	return PARSE_ERROR_NONE;
 }
@@ -1033,8 +1010,7 @@ static struct parser *init_parse_prefs(bool user)
 	parser_reg(p, "E sym tval int attr", parse_prefs_e);
 	parser_reg(p, "Q sym idx sym n ?sym sval ?sym flag", parse_prefs_q);
 		/* XXX should be split into two kinds of line */
-	parser_reg(p, "B uint idx str text", parse_prefs_b);
-		/* XXX idx should be {tval,sval} pair! */
+	parser_reg(p, "inscribe sym tval sym sval str text", parse_prefs_inscribe);
 	parser_reg(p, "A ?str act", parse_prefs_a);
 	parser_reg(p, "C int mode str key", parse_prefs_c);
 	parser_reg(p, "M int type sym attr", parse_prefs_m);
@@ -1042,6 +1018,7 @@ static struct parser *init_parse_prefs(bool user)
 	parser_reg(p, "W int window uint flag uint value", parse_prefs_w);
 	parser_reg(p, "X str option", parse_prefs_x);
 	parser_reg(p, "Y str option", parse_prefs_y);
+	parser_reg(p, "O sym name uint value", parse_prefs_o);
 
 	return p;
 }

@@ -152,8 +152,7 @@ bool borg_use_things(void)
          borg_quaff_potion(SV_POTION_INC_INT) ||
          borg_quaff_potion(SV_POTION_INC_WIS) ||
          borg_quaff_potion(SV_POTION_INC_DEX) ||
-         borg_quaff_potion(SV_POTION_INC_CON) ||
-         borg_quaff_potion(SV_POTION_INC_CHR))
+         borg_quaff_potion(SV_POTION_INC_CON))
     {
         return (TRUE);
     }
@@ -180,10 +179,6 @@ bool borg_use_things(void)
          (borg_quaff_potion(SV_POTION_RES_CON) ||
           borg_quaff_potion(SV_POTION_INC_CON) ||
           borg_eat_food(SV_FOOD_PURGING) ||
-          borg_eat_food(SV_FOOD_RESTORING))) ||
-        ((borg_skill[BI_ISFIXCHR]) &&
-         (borg_quaff_potion(SV_POTION_RES_CHR) ||
-          borg_quaff_potion(SV_POTION_INC_CHR)||
           borg_eat_food(SV_FOOD_RESTORING))))
     {
         return (TRUE);
@@ -326,7 +321,7 @@ bool borg_check_LIGHT_only(void)
 			int y = c_y + ddy_ddd[i];
 			
 			/* Bounds check */
-			if (!in_bounds_fully(y, x)) continue;
+			if (!cave_in_bounds_fully(cave, y, x)) continue;
 			
 			/* Get grid */
 			ag = &borg_grids[y][x];
@@ -362,7 +357,7 @@ bool borg_check_LIGHT_only(void)
 				borg_grid *ag;
 
 				/* Bounds check */
-				if (!in_bounds_fully(y, x)) continue;
+				if (!cave_in_bounds_fully(cave, y, x)) continue;
 				
 				/* Get grid */
 				ag = &borg_grids[y][x];
@@ -1457,7 +1452,6 @@ static bool borg_consume(int i)
             case SV_POTION_RES_WIS:
             case SV_POTION_RES_DEX:
             case SV_POTION_RES_CON:
-            case SV_POTION_RES_CHR:
             case SV_POTION_RESTORE_EXP:
             case SV_POTION_RESTORE_MANA:
             case SV_POTION_HEROISM:

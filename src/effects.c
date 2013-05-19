@@ -249,17 +249,21 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 
 		case EF_CURE_MIND:
 		{
+			if (player_restore_mana(p_ptr, 10)) *ident = TRUE;
 			if (player_clear_timed(p_ptr, TMD_CONFUSED, TRUE)) *ident = TRUE;
 			if (player_clear_timed(p_ptr, TMD_AFRAID, TRUE)) *ident = TRUE;
 			if (player_clear_timed(p_ptr, TMD_IMAGE, TRUE)) *ident = TRUE;
 			if (!of_has(p_ptr->state.flags, OF_RES_CONFU) &&
-				player_inc_timed(p_ptr, TMD_OPP_CONF, damroll(4, 10), TRUE, TRUE))
+				player_inc_timed(p_ptr, TMD_OPP_CONF, 12 + damroll(6, 10), TRUE, TRUE))
 			    	*ident = TRUE;
+
+			if (*ident) msg("Your feel your head clear.");
 			return TRUE;
 		}
 
 		case EF_CURE_BODY:
 		{
+			if (hp_player(30)) *ident = TRUE;
 			if (player_clear_timed(p_ptr, TMD_STUN, TRUE)) *ident = TRUE;
 			if (player_clear_timed(p_ptr, TMD_CUT, TRUE)) *ident = TRUE;
 			if (player_clear_timed(p_ptr, TMD_POISONED, TRUE)) *ident = TRUE;
@@ -405,7 +409,6 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 		case EF_GAIN_WIS:
 		case EF_GAIN_DEX:
 		case EF_GAIN_CON:
-		case EF_GAIN_CHR:
 		{
 			int stat = effect - EF_GAIN_STR;
 			if (do_inc_stat(stat)) *ident = TRUE;
@@ -419,7 +422,6 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 			if (do_inc_stat(A_WIS)) *ident = TRUE;
 			if (do_inc_stat(A_DEX)) *ident = TRUE;
 			if (do_inc_stat(A_CON)) *ident = TRUE;
-			if (do_inc_stat(A_CHR)) *ident = TRUE;
 			return TRUE;
 		}
 
@@ -497,26 +499,11 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 			return TRUE;
 		}
 
-		case EF_PLEASING:
-		{
-			/* Pick a random stat to decrease other than charisma */
-			int stat = randint0(A_MAX-1);
-
-			if (do_dec_stat(stat, TRUE))
-			{
-				do_inc_stat(A_CHR);
-				*ident = TRUE;
-			}
-
-			return TRUE;
-		}
-
 		case EF_LOSE_STR:
 		case EF_LOSE_INT:
 		case EF_LOSE_WIS:
 		case EF_LOSE_DEX:
 		case EF_LOSE_CON:
-		case EF_LOSE_CHR:
 		{
 			int stat = effect - EF_LOSE_STR;
 
@@ -541,7 +528,6 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 		case EF_RESTORE_WIS:
 		case EF_RESTORE_DEX:
 		case EF_RESTORE_CON:
-		case EF_RESTORE_CHR:
 		{
 			int stat = effect - EF_RESTORE_STR;
 			if (do_res_stat(stat)) *ident = TRUE;
@@ -565,7 +551,6 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 			if (do_res_stat(A_WIS)) *ident = TRUE;
 			if (do_res_stat(A_DEX)) *ident = TRUE;
 			if (do_res_stat(A_CON)) *ident = TRUE;
-			if (do_res_stat(A_CHR)) *ident = TRUE;
 
 			/* Recalculate max. hitpoints */
 			update_stuff(p_ptr);
@@ -584,7 +569,6 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 			if (do_res_stat(A_WIS)) *ident = TRUE;
 			if (do_res_stat(A_DEX)) *ident = TRUE;
 			if (do_res_stat(A_CON)) *ident = TRUE;
-			if (do_res_stat(A_CHR)) *ident = TRUE;
 			return TRUE;
 		}
 
@@ -596,7 +580,6 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 			if (do_res_stat(A_WIS)) *ident = TRUE;
 			if (do_res_stat(A_DEX)) *ident = TRUE;
 			if (do_res_stat(A_CON)) *ident = TRUE;
-			if (do_res_stat(A_CHR)) *ident = TRUE;
 			return TRUE;
 		}
 
@@ -618,7 +601,7 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 		case EF_TMD_ESP:
 		{
 			if (player_clear_timed(p_ptr, TMD_BLIND, TRUE)) *ident = TRUE;
-			if (player_inc_timed(p_ptr, TMD_TELEPATHY, 12 + damroll(6, 6), TRUE, TRUE))
+			if (player_inc_timed(p_ptr, TMD_TELEPATHY, 24 + damroll(9, 9), TRUE, TRUE))
 				*ident = TRUE;
 			return TRUE;
 		}
@@ -1662,7 +1645,6 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 			player_stat_dec(p_ptr, A_WIS, TRUE);
 			player_stat_dec(p_ptr, A_CON, TRUE);
 			player_stat_dec(p_ptr, A_STR, TRUE);
-			player_stat_dec(p_ptr, A_CHR, TRUE);
 			player_stat_dec(p_ptr, A_INT, TRUE);
 			*ident = TRUE;
 			return TRUE;
@@ -1826,7 +1808,7 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 
 		case EF_DRAGON_BLUE:
 		{
-			dam = 100 * (100 + boost) / 100;
+			dam = 150 * (100 + boost) / 100;
 			msgt(MSG_BR_ELEC, "You breathe lightning.");
 			fire_ball(GF_ELEC, dir, dam, 2);
 			return TRUE;
@@ -1872,7 +1854,7 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 
 		case EF_DRAGON_BRONZE:
 		{
-			dam = 120 * (100 + boost) / 100;
+			dam = 150 * (100 + boost) / 100;
 			msgt(MSG_BR_CONF, "You breathe confusion.");
 			fire_ball(GF_CONFU, dir, dam, 2);
 			return TRUE;
@@ -1880,7 +1862,7 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 
 		case EF_DRAGON_GOLD:
 		{
-			dam = 130 * (100 + boost) / 100;
+			dam = 150 * (100 + boost) / 100;
 			msgt(MSG_BR_SOUND, "You breathe sound.");
 			fire_ball(GF_SOUND, dir, dam, 2);
 			return TRUE;

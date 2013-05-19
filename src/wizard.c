@@ -121,7 +121,7 @@ static void do_cmd_wiz_hack_ben(void)
 			{
 				byte a = TERM_RED;
 
-				if (!in_bounds_fully(y, x)) continue;
+				if (!cave_in_bounds_fully(cave, y, x)) continue;
 
 				/* Display proper cost */
 				if (cave->cost[y][x] != i) continue;
@@ -1191,7 +1191,6 @@ static void do_cmd_wiz_cure_all(void)
 	(void)res_stat(A_WIS);
 	(void)res_stat(A_CON);
 	(void)res_stat(A_DEX);
-	(void)res_stat(A_CHR);
 
 	/* Restore the level */
 	(void)restore_level();
@@ -1383,7 +1382,7 @@ static void do_cmd_wiz_named(monster_race *r, bool slp)
 		int d = 1;
 
 		/* Pick a location */
-		scatter(&y, &x, py, px, d, 0);
+		scatter(&y, &x, py, px, d, TRUE);
 
 		/* Require empty grids */
 		if (!cave_isempty(cave, y, x)) continue;
@@ -1469,7 +1468,7 @@ static void do_cmd_wiz_query(void)
 		{
 			byte a = TERM_RED;
 
-			if (!in_bounds_fully(y, x)) continue;
+			if (!cave_in_bounds_fully(cave, y, x)) continue;
 
 			/* Given mask, show only those grids */
 			if (mask && !(cave->info[y][x] & mask)) continue;

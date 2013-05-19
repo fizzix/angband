@@ -55,13 +55,10 @@ extern void wiz_light(bool full);
 extern void wiz_dark(void);
 extern int project_path(u16b *gp, int range, int y1, int x1, int y2, int x2, int flg);
 extern bool projectable(int y1, int x1, int y2, int x2, int flg);
-extern void scatter(int *yp, int *xp, int y, int x, int d, int m);
+extern void scatter(int *yp, int *xp, int y, int x, int d, bool need_los);
 extern void disturb(struct player *p, int stop_search, int unused_flag);
 extern bool is_quest(int level);
 extern bool dtrap_edge(int y, int x);
-
-#define CAVE_INFO_Y	DUNGEON_HGT
-#define CAVE_INFO_X	256
 
 /* XXX: temporary while I refactor */
 extern struct cave *cave;
@@ -97,7 +94,6 @@ extern bool cave_issecretdoor(struct cave *c, int y, int x);
 extern bool cave_isopendoor(struct cave *c, int y, int x);
 extern bool cave_iscloseddoor(struct cave *c, int y, int x);
 extern bool cave_islockeddoor(struct cave *c, int y, int x);
-extern bool cave_isjammeddoor(struct cave *c, int y, int x);
 extern bool cave_isbrokendoor(struct cave *c, int y, int x);
 extern bool cave_isdoor(struct cave *c, int y, int x);
 extern bool cave_issecrettrap(struct cave *c, int y, int x);
@@ -161,9 +157,6 @@ extern int cave_monster_count(struct cave *c);
 void upgrade_mineral(struct cave *c, int y, int x);
 
 /* Feature modifiers */
-void cave_jam_door(struct cave *c, int y, int x);
-void cave_unjam_door(struct cave *c, int y, int x);
-int cave_can_jam_door(struct cave *c, int y, int x);
 int cave_door_power(struct cave *c, int y, int x);
 void cave_open_door(struct cave *c, int y, int x);
 void cave_close_door(struct cave *c, int y, int x);

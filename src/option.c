@@ -29,7 +29,6 @@ const int option_page[OPT_PAGE_MAX][OPT_PAGE_PER] =
 		OPT_use_old_target,
 		OPT_pickup_always,
 		OPT_pickup_inven,
-		OPT_easy_open,
 		OPT_center_player,
 		OPT_show_flavors,
 		OPT_mouse_movement,
@@ -41,6 +40,7 @@ const int option_page[OPT_PAGE_MAX][OPT_PAGE_PER] =
 		OPT_solid_walls,
 		OPT_hybrid_walls,
 		OPT_NONE,
+		OPT_NONE,
 	},
 
 
@@ -48,10 +48,7 @@ const int option_page[OPT_PAGE_MAX][OPT_PAGE_PER] =
 	{
 		OPT_hp_changes_color,
 		OPT_purple_uniques,
-		OPT_disturb_move,
 		OPT_disturb_near,
-		OPT_disturb_detect,
-		OPT_disturb_state,
 		OPT_auto_more,
 		OPT_notify_recharge,
 		OPT_NONE,
@@ -68,9 +65,7 @@ const int option_page[OPT_PAGE_MAX][OPT_PAGE_PER] =
 	{
 		OPT_birth_randarts,
 		OPT_birth_keep_randarts,
-		OPT_birth_ai_packs,
 		OPT_birth_ai_learn,
-		OPT_birth_ai_cheat,
 		OPT_birth_force_descend,
 		OPT_birth_no_recall,
 		OPT_birth_small_range,
@@ -80,6 +75,8 @@ const int option_page[OPT_PAGE_MAX][OPT_PAGE_PER] =
 		OPT_birth_no_stairs,
 		OPT_birth_no_feelings,
 		OPT_birth_no_selling,
+		OPT_birth_start_kit,
+		OPT_NONE,
 		OPT_NONE,
 		OPT_NONE,
 	},
@@ -122,20 +119,20 @@ static const struct option options[OPT_MAX] =
 { "pickup_always",       "Always pickup items",                         FALSE }, /* 4 */
 { "pickup_inven",        "Always pickup items matching inventory",      TRUE },  /* 5 */
 { "show_flavors",        "Show flavors in object descriptions",         FALSE }, /* 6 */
-{ "disturb_move",        "Disturb whenever any monster moves",          FALSE }, /* 7 */
+{ NULL,                  NULL,                                          FALSE }, /* 7 */
 { "disturb_near",        "Disturb whenever viewable monster moves",     TRUE },  /* 8 */
-{ "disturb_detect",      "Disturb whenever leaving trap detected area", TRUE },  /* 9 */
-{ "disturb_state",       "Disturb whenever player state changes",       TRUE },  /* 10 */
-{"solid_walls",          "Show walls as solid blocks",                  FALSE},  /* 11 */
-{"hybrid_walls",         "Show walls with shaded background",           FALSE},  /* 12 */
+{ NULL,                  NULL,                                          FALSE }, /* 9 */
+{ NULL,                  NULL,                                          FALSE }, /* 10 */
+{ "solid_walls",         "Show walls as solid blocks",                  FALSE }, /* 11 */
+{ "hybrid_walls",        "Show walls with shaded background",           FALSE }, /* 12 */
 { "view_yellow_light",   "Color: Illuminate torchlight in yellow",      FALSE }, /* 13 */
-{ "easy_open",           "Open/disarm/close without direction",         TRUE },  /* 14 */
+{ NULL,                  NULL,                                          FALSE }, /* 14 */
 { "animate_flicker",     "Color: Shimmer multi-colored things",         FALSE }, /* 15 */
 { "center_player",       "Center map continuously",                     FALSE }, /* 16 */
 { "purple_uniques",      "Color: Show unique monsters in purple",       FALSE }, /* 17 */
 { NULL,                  NULL,                                          FALSE }, /* 18 */
 { "auto_more",           "Automatically clear '-more-' prompts",        FALSE }, /* 19 */
-{ "hp_changes_color",    "Color: Player color indicates % hit points",  FALSE }, /* 20 */
+{ "hp_changes_color",    "Color: Player color indicates % hit points",  TRUE },  /* 20 */
 { "mouse_movement",      "Allow mouse clicks to move the player",       TRUE },  /* 21 */
 { "mouse_buttons",       "Show mouse status line buttons",              FALSE }, /* 22 */
 { "notify_recharge",     "Notify on object recharge",                   FALSE }, /* 23 */
@@ -174,13 +171,13 @@ static const struct option options[OPT_MAX] =
 { "birth_no_preserve",   "Lose artifacts when leaving level",           FALSE }, /* 56 */
 { "birth_no_stairs",     "Don't generate connected stairs",             FALSE }, /* 57 */
 { "birth_no_feelings",   "Don't show level feelings",                   FALSE }, /* 58 */
-{ "birth_no_selling",    "Items always sell for 0 gold",                FALSE }, /* 59 */
+{ "birth_no_selling",    "Items always sell for 0 gold",                TRUE }, /* 59 */
 { "birth_keep_randarts", "Use previous set of randarts",                TRUE },  /* 60 */
-{ NULL,                  NULL,                                          FALSE }, /* 61 */
-{ "birth_ai_packs",      "Monsters act smarter in groups",              TRUE },  /* 62 */
+{ "birth_start_kit",     "Start with a kit of useful gear",             TRUE }, /* 61 */
+{ NULL,                  NULL,                                          FALSE }, /* 62 */
 { "birth_ai_learn",      "Monsters learn from their mistakes",          FALSE }, /* 63 */
-{ "birth_ai_cheat",      "Monsters exploit player's weaknesses",        FALSE }, /* 64 */
-{ "birth_force_descend", "Force player decent",                         FALSE }, /* 65 */
+{ NULL,                  NULL,                                          FALSE }, /* 64 */
+{ "birth_force_descend", "Force player descent",                        FALSE }, /* 65 */
 { NULL,                  NULL,                                          FALSE }, /* 66 */
 { NULL,                  NULL,                                          FALSE }, /* 67 */
 { NULL,                  NULL,                                          FALSE }, /* 68 */
@@ -209,23 +206,31 @@ static bool option_is_score(int opt) { return opt >= OPT_SCORE && opt < (OPT_SCO
 static bool option_is_cheat(int opt) { return opt >= OPT_CHEAT && opt < (OPT_CHEAT + N_OPTS_CHEAT); }
 
 /* Setup functions */
-bool option_set(const char *name, bool on)
+bool option_set(const char *name, int val)
 {
 	size_t opt;
-	for (opt = 0; opt < OPT_MAX; opt++)
-	{
+
+	/* Try normal options first */
+	for (opt = 0; opt < OPT_MAX; opt++) {
 		if (!options[opt].name || !streq(options[opt].name, name))
 			continue;
 
-		op_ptr->opt[opt] = on;
-		if (on && option_is_cheat(opt)) {
+		op_ptr->opt[opt] = val ? TRUE : FALSE;
+		if (val && option_is_cheat(opt))
 			op_ptr->opt[opt + (OPT_SCORE - OPT_CHEAT)] = TRUE;
-		}
 
 		return TRUE;
 	}
 
-	return FALSE;
+	if (streq(name, "hp_warn_factor")) {
+		op_ptr->hitpoint_warn = val;
+	} else if (streq(name, "delay_factor")) {
+		op_ptr->delay_factor = val;
+	} else {
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 void option_set_defaults(void)
@@ -233,4 +238,59 @@ void option_set_defaults(void)
 	size_t opt;
 	for (opt = 0; opt < OPT_MAX; opt++)
 		op_ptr->opt[opt] = options[opt].normal;
+
+	/* 40ms for the delay factor */
+	op_ptr->delay_factor = 40;
+
+	/* 30% of HP */
+	op_ptr->hitpoint_warn = 3;
+}
+
+
+/*
+ * Write all current options to a user preference file.
+ */
+void option_dump(ang_file *f)
+{
+	int i, j;
+
+	file_putf(f, "# Options\n");
+
+	/* Dump options (skip cheat, score) */
+	for (i = 0; i < OPT_CHEAT; i++) {
+		const char *name = option_name(i);
+		if (name)
+			file_putf(f, "%c:%s\n", op_ptr->opt[i] ? 'Y' : 'X', name);
+	}
+
+	file_putf(f, "O:hp_warn_factor:%d\n", op_ptr->hitpoint_warn);
+	file_putf(f, "O:delay_factor:%d\n", op_ptr->delay_factor);
+	file_putf(f, "\n");
+
+	/* Dump window flags */
+	for (i = 1; i < ANGBAND_TERM_MAX; i++)
+	{
+		/* Require a real window */
+		if (!angband_term[i]) continue;
+
+		/* Check each flag */
+		for (j = 0; j < (int)N_ELEMENTS(window_flag_desc); j++)
+		{
+			/* Require a real flag */
+			if (!window_flag_desc[j]) continue;
+
+			/* Comment */
+			file_putf(f, "# Window '%s', Flag '%s'\n",
+				angband_term_name[i], window_flag_desc[j]);
+
+			/* Dump the flag */
+			if (op_ptr->window_flag[i] & (1L << j))
+				file_putf(f, "W:%d:%d:1\n", i, j);
+			else
+				file_putf(f, "W:%d:%d:0\n", i, j);
+
+			/* Skip a line */
+			file_putf(f, "\n");
+		}
+	}
 }

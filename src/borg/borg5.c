@@ -680,10 +680,6 @@ static int borg_guess_race(byte a, wchar_t c, bool multi, int y, int x)
         /* Penalize "depth miss" */
         s = s - ABS(r_ptr->level - borg_skill[BI_CDEPTH]);
 
-
-        /* Hack -- Reward group monsters */
-        if (r_ptr->flags1 & (RF1_FRIEND | RF1_FRIENDS)) s = s + 5;
-
         /* Hack -- Reward multiplying monsters */
         if (rf_has(r_ptr->flags, RF_MULTIPLY)) s = s + 10;
 
@@ -1515,7 +1511,7 @@ static void borg_follow_kill(int i)
         y = oy + dy;
 
 		/* legal */
-		if (!in_bounds_fully(y,x)) continue;
+		if (!cave_in_bounds_fully(cave, y,x)) continue;
 
 		/* Access the grid */
         ag = &borg_grids[y][x];
@@ -4739,7 +4735,7 @@ void borg_update(void)
         int x = c_x + borg_ddx_ddd[j];
 
 		/* Stay in the bounds */
-		if (!in_bounds(y, x))
+		if (!cave_in_bounds(cave, y, x))
 		{
 			floor_grid++;
 			continue;
@@ -5101,7 +5097,7 @@ void borg_update(void)
 	            y = kill->y + ddy_ddd[ii];
 
 				/* Legal grid */
-				if (!in_bounds_fully(y,x)) continue;
+				if (!cave_in_bounds_fully(cave, y,x)) continue;
 
 				/* Access the grid */
 	            ag = &borg_grids[y][x];

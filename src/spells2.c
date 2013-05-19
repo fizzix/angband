@@ -201,10 +201,6 @@ bool do_dec_stat(int stat, bool perma)
 			if (check_state(p_ptr, OF_SUST_CON, p_ptr->state.flags)) sust = TRUE;
 			wieldeds_notice_flag(p_ptr, OF_SUST_CON);
 			break;
-		case A_CHR:
-			if (check_state(p_ptr, OF_SUST_CHR, p_ptr->state.flags)) sust = TRUE;
-			wieldeds_notice_flag(p_ptr, OF_SUST_CHR);
-			break;
 	}
 
 	/* Sustain */
@@ -516,7 +512,7 @@ void map_area(void)
 			/* All non-walls are "checked" */
 			if (!cave_seemslikewall(cave, y, x))
 			{
-				if (!in_bounds_fully(y, x)) continue;
+				if (!cave_in_bounds_fully(cave, y, x)) continue;
 
 				/* Memorize normal features */
 				if (cave_isinteresting(cave, y, x))
@@ -576,7 +572,7 @@ bool detect_traps(bool aware)
 	{
 		for (x = x1; x < x2; x++)
 		{
-			if (!in_bounds_fully(y, x)) continue;
+			if (!cave_in_bounds_fully(cave, y, x)) continue;
 
 			/* Detect invisible traps */
 			if (cave_issecrettrap(cave, y, x))
@@ -625,7 +621,7 @@ bool detect_traps(bool aware)
 	{
 		for (x = x1 - 1; x < x2 + 1; x++)
 		{
-			if (!in_bounds_fully(y, x)) continue;
+			if (!cave_in_bounds_fully(cave, y, x)) continue;
 
 			/* see if this grid is on the edge */
 			if (dtrap_edge(y, x)) {
@@ -683,7 +679,7 @@ bool detect_doorstairs(bool aware)
 	{
 		for (x = x1; x < x2; x++)
 		{
-			if (!in_bounds_fully(y, x)) continue;
+			if (!cave_in_bounds_fully(cave, y, x)) continue;
 
 			/* Detect secret doors */
 			if (cave_issecretdoor(cave, y, x))
@@ -755,7 +751,7 @@ bool detect_treasure(bool aware, bool full)
 	/* Scan the dungeon */
 	for (y = y1; y < y2; y++) {
 		for (x = x1; x < x2; x++) {
-			if (!in_bounds_fully(y, x)) continue;
+			if (!cave_in_bounds_fully(cave, y, x)) continue;
 
 			cave_show_vein(cave, y, x);
 
@@ -841,7 +837,7 @@ bool detect_close_buried_treasure(void)
 	{
 		for (x = x1; x < x2; x++)
 		{
-			if (!in_bounds_fully(y, x)) continue;
+			if (!cave_in_bounds_fully(cave, y, x)) continue;
 
 			/* Notice embedded gold */
 			cave_show_vein(cave, y, x);
@@ -1994,7 +1990,7 @@ void destroy_area(int y1, int x1, int r, bool full)
 		for (x = (x1 - r); x <= (x1 + r); x++)
 		{
 			/* Skip illegal grids */
-			if (!in_bounds_fully(y, x)) continue;
+			if (!cave_in_bounds_fully(cave, y, x)) continue;
 			
 			/* Extract the distance */
 			k = distance(y1, x1, y, x);
@@ -2129,7 +2125,7 @@ void earthquake(int cy, int cx, int r)
 			xx = cx + dx;
 
 			/* Skip illegal grids */
-			if (!in_bounds_fully(yy, xx)) continue;
+			if (!cave_in_bounds_fully(cave, yy, xx)) continue;
 
 			/* Skip distant grids */
 			if (distance(cy, cx, yy, xx) > r) continue;
@@ -2359,7 +2355,7 @@ void earthquake(int cy, int cx, int r)
 			xx = cx + dx;
 
 			/* ignore invalid grids */
-			if (!in_bounds_fully(yy, xx)) continue;
+			if (!cave_in_bounds_fully(cave, yy, xx)) continue;
 
 			/* Note unaffected grids for light changes, etc. */
 			if (!map[16+yy-cy][16+xx-cx])
@@ -3186,7 +3182,6 @@ void ring_of_power(int dir)
 			player_stat_dec(p_ptr, A_WIS, TRUE);
 			player_stat_dec(p_ptr, A_DEX, TRUE);
 			player_stat_dec(p_ptr, A_CON, TRUE);
-			player_stat_dec(p_ptr, A_CHR, TRUE);
 
 			/* Lose some experience (permanently) */
 			player_exp_lose(p_ptr, p_ptr->exp / 4, TRUE);

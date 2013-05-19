@@ -582,33 +582,22 @@ static void process_world(struct cave *c)
 	/*** Check the Food, and Regenerate ***/
 
 	/* Digest normally */
-	if (p_ptr->food < PY_FOOD_MAX)
+	if (!(turn % 100))
 	{
-		/* Every 100 game turns */
-		if (!(turn % 100))
-		{
-			/* Basic digestion rate based on speed */
-			i = extract_energy[p_ptr->state.speed] * 2;
+		/* Basic digestion rate based on speed */
+		i = extract_energy[p_ptr->state.speed] * 2;
 
-			/* Regeneration takes more food */
-			if (check_state(p_ptr, OF_REGEN, p_ptr->state.flags)) i += 30;
+		/* Regeneration takes more food */
+		if (check_state(p_ptr, OF_REGEN, p_ptr->state.flags)) i += 30;
 
-			/* Slow digestion takes less food */
-			if (check_state(p_ptr, OF_SLOW_DIGEST, p_ptr->state.flags)) i -= 10;
+		/* Slow digestion takes less food */
+		if (check_state(p_ptr, OF_SLOW_DIGEST, p_ptr->state.flags)) i = 1;
 
-			/* Minimal digestion */
-			if (i < 1) i = 1;
+		/* Minimal digestion */
+		if (i < 1) i = 1;
 
-			/* Digest some food */
-			player_set_food(p_ptr, p_ptr->food - i);
-		}
-	}
-
-	/* Digest quickly when gorged */
-	else
-	{
-		/* Digest a lot of food */
-		player_set_food(p_ptr, p_ptr->food - 100);
+		/* Digest some food */
+		player_set_food(p_ptr, p_ptr->food - i);
 	}
 
 	/* Getting Faint */
@@ -780,7 +769,7 @@ static void process_world(struct cave *c)
 	/*** Involuntary Movement ***/
 
 	/* Random teleportation */
-	if (check_state(p_ptr, OF_TELEPORT, p_ptr->state.flags) && one_in_(100))
+	if (check_state(p_ptr, OF_TELEPORT, p_ptr->state.flags) && one_in_(50))
 	{
 		wieldeds_notice_flag(p_ptr, OF_TELEPORT);
 		teleport_player(40);
@@ -1619,9 +1608,6 @@ void play_game(void)
 	/* Hack -- Turn off the cursor */
 	(void)Term_set_cursor(FALSE);
 
-	/* set a default warning level that will be overridden by the savefile */
-	op_ptr->hitpoint_warn = 3;
-
 	/* initialize window options that will be overridden by the savefile */
 	memset(window_flag, 0, sizeof(u32b)*ANGBAND_TERM_MAX);
 	if (ANGBAND_TERM_MAX > 1) window_flag[1] = (PW_MESSAGE);
@@ -1711,7 +1697,8 @@ void play_game(void)
 		do_randart(seed_randart, TRUE);
 
 	/* Initialize temporary fields sensibly */
-	p_ptr->object_idx = p_ptr->object_kind_idx = NO_OBJECT;
+	p_ptr->object_idx = NO_OBJECT;
+	p_ptr->object_kind = NULL;
 	p_ptr->monster_race = NULL;
 
 	/* Set the savefile name if it's not already set */

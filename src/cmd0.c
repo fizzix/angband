@@ -89,8 +89,6 @@ static struct cmd_info cmd_action[] =
 	{ "Toggle search mode", { 'S', '#' }, CMD_TOGGLE_SEARCH },
 	{ "Open a door or a chest", { 'o' }, CMD_OPEN },
 	{ "Close a door", { 'c' }, CMD_CLOSE },
-	{ "Jam a door shut", { 'j', 'S' }, CMD_JAM },
-	{ "Bash a door open", { 'B', 'f' }, CMD_BASH },
 	{ "Fire at nearest target", { 'h', KC_TAB }, CMD_NULL, textui_cmd_fire_at_nearest },
 	{ "Throw an item", { 'v' }, CMD_THROW, textui_cmd_throw },
 	{ "Walk into a trap", { 'W', '-' }, CMD_JUMP, NULL },
@@ -681,7 +679,7 @@ static void textui_process_click(ui_event e)
 	x = KEY_GRID_X(e);
 
 	/* Check for a valid location */
-	if (!in_bounds_fully(y, x)) return;
+	if (!cave_in_bounds_fully(cave, y, x)) return;
 
 	/* XXX show context menu here */
 	if ((p_ptr->py == y) && (p_ptr->px == x)) {
@@ -783,13 +781,12 @@ static void textui_process_click(ui_event e)
 
 	else if (e.mouse.button == 2)
 	{
-		int m_idx = cave->m_idx[y][x];
-		if (m_idx && target_able(m_idx)) {
-			monster_type *m_ptr = cave_monster(cave, m_idx);
+		struct monster *m = cave_monster_at(cave, y, x);
+		if (m && target_able(m)) {
 			/* Set up target information */
-			monster_race_track(m_ptr->race);
-			health_track(p_ptr, m_ptr);
-			target_set_monster(m_idx);
+			monster_race_track(m->race);
+			health_track(p_ptr, m);
+			target_set_monster(m);
 		} else {
 			target_set_location(y,x);
 		}

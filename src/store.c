@@ -221,7 +221,7 @@ static enum parser_error parse_store(struct parser *p) {
 	struct store *s;
 	unsigned int idx = parser_getuint(p, "index") - 1;
 
-	if (idx > STORE_B_MARKET)
+	if (idx > STORE_HOME)
 		return PARSE_ERROR_OUT_OF_BOUNDS;
 
 	s = store_new(parser_getuint(p, "index") - 1);
@@ -290,10 +290,29 @@ static enum parser_error parse_always(struct parser *p) {
 	return PARSE_ERROR_NONE;
 }
 
+static enum parser_error parse_owner(struct parser *p) {
+	struct store *s = parser_priv(p);
+	unsigned int maxcost = parser_getuint(p, "purse");
+	char *name = string_make(parser_getstr(p, "name"));
+	struct owner *o;
+
+	if (!s)
+		return PARSE_ERROR_MISSING_RECORD_HEADER;
+
+	o = mem_zalloc(sizeof *o);
+	o->oidx = (s->owners ? s->owners->oidx + 1 : 0);
+	o->next = s->owners;
+	o->name = name;
+	o->max_cost = maxcost;
+	s->owners = o;
+	return PARSE_ERROR_NONE;
+}
+
 struct parser *init_parse_stores(void) {
 	struct parser *p = parser_new();
 	parser_setpriv(p, NULL);
 	parser_reg(p, "store uint index str name", parse_store);
+	parser_reg(p, "owner uint purse str name", parse_owner);
 	parser_reg(p, "slots uint min uint max", parse_slots);
 	parser_reg(p, "turnover uint turnover", parse_turnover);
 	parser_reg(p, "normal sym tval sym sval", parse_normal);
@@ -320,72 +339,7 @@ static struct file_parser store_parser = {
 };
 
 
-/** shop_own.txt **/
-
-struct owner_parser_state {
-	struct store *stores;
-	struct store *cur;
-};
-
-static enum parser_error parse_own_n(struct parser *p) {
-	struct owner_parser_state *s = parser_priv(p);
-	unsigned int index = parser_getuint(p, "index");
-	struct store *st;
-
-	for (st = s->stores; st; st = st->next) {
-		if (st->sidx == index) {
-			s->cur = st;
-			break;
-		}
-	}
-
-	return st ? PARSE_ERROR_NONE : PARSE_ERROR_OUT_OF_BOUNDS;
-}
-
-static enum parser_error parse_own_s(struct parser *p) {
-	struct owner_parser_state *s = parser_priv(p);
-	unsigned int maxcost = parser_getuint(p, "maxcost");
-	char *name = string_make(parser_getstr(p, "name"));
-	struct owner *o;
-
-	if (!s->cur)
-		return PARSE_ERROR_MISSING_RECORD_HEADER;
-
-	o = mem_zalloc(sizeof *o);
-	o->oidx = (s->cur->owners ? s->cur->owners->oidx + 1 : 0);
-	o->next = s->cur->owners;
-	o->name = name;
-	o->max_cost = maxcost;
-	s->cur->owners = o;
-	return PARSE_ERROR_NONE;
-}
-
-struct parser *store_owner_parser_new(struct store *ss) {
-	struct parser *p = parser_new();
-	struct owner_parser_state *s = mem_zalloc(sizeof *s);
-	s->stores = ss;
-	s->cur = NULL;
-	parser_setpriv(p, s);
-	parser_reg(p, "V sym version", ignored);
-	parser_reg(p, "N uint index", parse_own_n);
-	parser_reg(p, "S uint maxcost str name", parse_own_s);
-	return p;
-}
-
 /*** Other init stuff ***/
-
-static struct store *add_builtin_stores(struct store *ss) {
-	struct store *s = store_new(STORE_HOME);
-	s->next = ss;
-	return s;
-}
-
-static void parse_owners(struct store *stores) {
-	struct parser *p = store_owner_parser_new(stores);
-	parse_file(p, "shop_own");
-	mem_free(parser_priv(p));
-	parser_destroy(p);
-}
 
 static struct store *flatten_stores(struct store *store_list) {
 	struct store *s;
@@ -409,14 +363,9 @@ static struct store *flatten_stores(struct store *store_list) {
 
 void store_init(void)
 {
-	struct store *store_list;
-
 	event_signal_string(EVENT_INITSTATUS, "Initialising stores...");
 	if (run_parser(&store_parser)) quit("Can't initialise stores");
-
-	store_list = add_builtin_stores(stores);
-	parse_owners(store_list);
-	stores = flatten_stores(store_list);
+	stores = flatten_stores(stores);
 }
 
 void store_reset(void) {
@@ -524,10 +473,18 @@ static bool store_will_buy(struct store *store, const object_type *o_ptr)
 		/* General Store */
 		case STORE_GENERAL:
 		{
-			/* Accept lights (inc. oil), spikes and food */
-			if (o_ptr->tval == TV_LIGHT || o_ptr->tval == TV_FOOD ||
-					o_ptr->tval == TV_FLASK || o_ptr->tval == TV_SPIKE) break;
-			else return FALSE;
+			/* Analyze the types */
+			switch (o_ptr->tval)
+			{
+				case TV_LIGHT:
+				case TV_FOOD:
+				case TV_FLASK:
+				case TV_DIGGING:
+					break;
+
+				default:
+					return (FALSE);
+			}
 		}
 
 		/* Armoury */
@@ -718,7 +675,7 @@ s32b price_item(const object_type *o_ptr, bool store_buying, int qty)
 	if (store->sidx == STORE_B_MARKET)
 		adjust = 150;
 	else
-		adjust = adj_chr_gold[p_ptr->state.stat_ind[A_CHR]];
+		adjust = 100;
 
 
 	/* Shop is buying */
@@ -842,7 +799,6 @@ static void mass_produce(object_type *o_ptr)
 			break;
 		}
 
-		case TV_SPIKE:
 		case TV_SHOT:
 		case TV_ARROW:
 		case TV_BOLT:
@@ -1297,7 +1253,6 @@ static void store_delete_index(struct store *store, int what)
 		/* Special behaviour for arrows, bolts &tc. */
 		switch (o_ptr->tval)
 		{
-			case TV_SPIKE:
 			case TV_SHOT:
 			case TV_ARROW:
 			case TV_BOLT:
@@ -1362,10 +1317,9 @@ static bool store_find_kind(struct store *s, object_kind *k) {
 }
 
 /**
- * Check if a given store index is an always-stocked item.
+ * Check if a given item kind is an always-stocked item.
  */
-static bool store_is_staple(struct store *s, int slot) {
-	object_kind *k = s->stock[slot].kind;
+static bool store_is_staple(struct store *s, object_kind *k) {
 	size_t i;
 
 	assert(s);
@@ -1386,6 +1340,11 @@ static bool store_is_staple(struct store *s, int slot) {
  *
  * This function is used when store maintainance occurs, and is designed to
  * imitate non-PC purchasers making purchases from the store.
+ *
+ * The reason this doesn't check for "staple" items and refuse to
+ * delete them is that a store could conceviably have two stacks of a
+ * single staple item, in which case, you could have a store which had
+ * more stacks than staple items, but all stacks are staple items.
  */
 static void store_delete_random(struct store *store)
 {
@@ -1395,8 +1354,7 @@ static void store_delete_random(struct store *store)
 
 	/* Pick a random slot */
 	what = randint0(store->stock_num);
-	if (!store_is_staple(store, what))
-		store_delete_index(store, what);
+	store_delete_index(store, what);
 }
 
 
@@ -1494,7 +1452,6 @@ static bool store_create_random(struct store *store)
 			kind = get_obj_num(level, FALSE, 0);
 		else
 			kind = store_get_choice(store);
-
 
 		/*** Pre-generation filters ***/
 
@@ -1618,6 +1575,52 @@ void store_maint(struct store *s)
 		}
 	}
 
+	/* We want to make sure stores have staple items. If there's
+	 * turnover, we also want to delete a few items, and add a few
+	 * items.
+	 *
+	 * If we create staple items, then delete items, then create new
+	 * items, we are stuck with one of three choices:
+	 * 1. We can risk deleting staple items, and not having any left.
+	 * 2. We can refuse to delete staple items, and risk having that
+	 * become an infinite loop.
+	 * 3. We can do a ton of extra bookkeeping to make sure we delete
+	 * staple items only if there's duplicates of them.
+	 *
+	 * What if we change the order? First sell a handful of random items,
+	 * then create any missing staples, then create new items. This
+	 * has two tests for s->turnover, but simplifies everything else
+	 * dramatically.
+	 */
+
+	if (s->turnover) {
+		int restock_attempts = 100000;
+		int stock = s->stock_num - randint1(s->turnover);
+
+		/* We'll end up adding staples for sure, maybe plus other
+		 * items. It's fine if we sell out completely, though, if
+		 * turnover is high. The cap doesn't include always_num,
+		 * because otherwise the addition of missing staples could
+		 * put us over (if the store was full of player-sold loot).
+		 */
+		int min = 0;
+		int max = s->normal_stock_max;
+
+		/* Sell a few items */
+		stock = s->stock_num;
+		stock -= randint1(s->turnover);
+
+		if (stock < min) stock = min;
+		if (stock > max) stock = max;
+
+		/* Destroy random objects until only "stock" slots are left */
+		while (s->stock_num > stock && --restock_attempts)
+			store_delete_random(s);
+
+		if (!restock_attempts)
+			quit_fmt("Unable to (de-)stock store %d. Please report this bug", s->sidx + 1);
+	}
+
 	/* Ensure staples are created */
 	if (s->always_num) {
 		size_t i;
@@ -1634,36 +1637,19 @@ void store_maint(struct store *s)
 		}
 	}
 
-	/* Only turn over products if there is a turnover */
 	if (s->turnover) {
 		int restock_attempts = 100000;
-		int stock;
+		int stock = s->stock_num + randint1(s->turnover);
 
-		/* Take into account that the min/max actual stock to hold is the
-		 * min/max normal stock + the always-there stock */
+		/* Now that the staples exist, we want to add more
+		 * items, at least enough to get us to normal_stock_min
+		 * items that aren't necessarily staples.
+		 */
+
 		int min = s->normal_stock_min + s->always_num;
 		int max = s->normal_stock_max + s->always_num;
 
-		/** "Sell" various items **/
-
-		/* Sell a few items */
-		stock = s->stock_num;
-		stock -= randint1(s->turnover);
-
-		/* Keep stock between specified min and max slots */
-		if (stock > max) stock = max;
-		if (stock < min) stock = min;
-
-		/* Destroy objects until only "j" slots are left */
-		while (s->stock_num > stock)
-			store_delete_random(s);
-
-
-		/** "Buy in" various items **/
-
 		/* Buy a few items */
-		stock = s->stock_num;
-		stock += randint1(s->turnover);
 
 		/* Keep stock between specified min and max slots */
 		if (stock > max) stock = max;
@@ -2261,7 +2247,7 @@ void do_cmd_buy(cmd_code code, cmd_arg args[])
 	handle_stuff(p_ptr);
 
 	/* Remove the bought objects from the store if it's not a staple */
-	if (!store_is_staple(store, item)) {
+	if (!store_is_staple(store, store->stock[item].kind)) {
 		store_item_increase(store, item, -amt);
 		store_item_optimize(store, item);
 

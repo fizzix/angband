@@ -240,8 +240,7 @@
 /*
  * Player "food" crucial values
  */
-#define PY_FOOD_UPPER   20000   /* Upper limit on food counter */
-#define PY_FOOD_MAX	15000	/* Food value (Bloated) */
+#define PY_FOOD_MAX 	17000	/* Food value (Bloated) */
 #define PY_FOOD_FULL	10000	/* Food value (Normal) */
 #define PY_FOOD_ALERT	2000	/* Food value (Hungry) */
 #define PY_FOOD_WEAK	1000	/* Food value (Weak) */
@@ -389,7 +388,6 @@ enum
 	A_WIS,
 	A_DEX,
 	A_CON,
-	A_CHR,
 
 	A_MAX
 };
@@ -778,23 +776,6 @@ enum
  */
 #define KEY_GRID_X(K) \
 	((int) (((K.mouse.x - COL_MAP) / tile_width) + Term->offset_x))
-
-
-/*
- * Determines if a map location is "meaningful"
- */
-#define in_bounds(Y,X) \
-	(((unsigned)(Y) < (unsigned)(DUNGEON_HGT)) && \
-	 ((unsigned)(X) < (unsigned)(DUNGEON_WID)))
-
-/*
- * Determines if a map location is fully inside the outer walls
- * This is more than twice as expensive as "in_bounds()", but
- * often we need to exclude the outer walls from calculations.
- */
-#define in_bounds_fully(Y,X) \
-	(((Y) > 0) && ((Y) < DUNGEON_HGT-1) && \
-	 ((X) > 0) && ((X) < DUNGEON_WID-1))
 
 
 /*

@@ -695,7 +695,7 @@ int scan_floor(int *items, int max_size, int y, int x, int mode)
 	int num = 0;
 	
 	/* Sanity */
-	if (!in_bounds(y, x)) return 0;
+	if (!cave_in_bounds(cave, y, x)) return 0;
 
 	/* Scan all objects in the grid */
 	for (this_o_idx = cave->o_idx[y][x]; this_o_idx; this_o_idx = next_o_idx)
@@ -894,8 +894,11 @@ void delete_object_idx(int o_idx)
 		
 		/* Clear the mimicry */
 		m_ptr->mimicked_o_idx = 0;
-		
+		m_ptr->unaware = FALSE;
+
+#if 0 /* Hack - just make the mimic obviously a mimic instead of deleting it */
 		delete_monster_idx(j_ptr->mimicking_m_idx);
+#endif
 	}
 
 	/* Wipe the object */
@@ -920,7 +923,7 @@ void delete_object(int y, int x)
 	s16b this_o_idx, next_o_idx = 0;
 
 	/* Paranoia */
-	if (!in_bounds(y, x)) return;
+	if (!cave_in_bounds(cave, y, x)) return;
 
 	/* Scan all objects in the grid */
 	for (this_o_idx = cave->o_idx[y][x]; this_o_idx; this_o_idx = next_o_idx) {
@@ -1973,7 +1976,7 @@ s16b floor_carry(struct cave *c, int y, int x, object_type *j_ptr)
 /*
  * Let an object fall to the ground at or near a location.
  *
- * The initial location is assumed to be "in_bounds_fully()".
+ * The initial location is assumed to be "cave_in_bounds_fully(cave, )".
  *
  * This function takes a parameter "chance".  This is the percentage
  * chance that the item will "disappear" instead of drop.  If the object
@@ -2051,7 +2054,7 @@ void drop_near(struct cave *c, object_type *j_ptr, int chance, int y, int x, boo
 			tx = x + dx;
 
 			/* Skip illegal grids */
-			if (!in_bounds_fully(ty, tx)) continue;
+			if (!cave_in_bounds_fully(cave, ty, tx)) continue;
 
 			/* Require line of sight */
 			if (!los(y, x, ty, tx)) continue;
@@ -3527,10 +3530,6 @@ struct object_kind *objkind_byid(int kidx) {
  */
 static const grouper tval_names[] =
 {
-	{ TV_SKELETON,    "skeleton" },
-	{ TV_BOTTLE,      "bottle" },
-	{ TV_JUNK,        "junk" },
-	{ TV_SPIKE,       "spike" },
 	{ TV_CHEST,       "chest" },
 	{ TV_SHOT,        "shot" },
 	{ TV_ARROW,       "arrow" },
@@ -3771,11 +3770,11 @@ void display_object_idx_recall(s16b item)
  * This draws the Object Recall subwindow when displaying a recalled item kind
  * (e.g. a generic ring of acid or a generic blade of chaos)
  */
-void display_object_kind_recall(s16b k_idx)
+void display_object_kind_recall(struct object_kind *kind)
 {
 	object_type object = { 0 };
-	object_prep(&object, &k_info[k_idx], 0, EXTREMIFY);
-	if (k_info[k_idx].aware)
+	object_prep(&object, kind, 0, EXTREMIFY);
+	if (kind->aware)
 		object.ident |= IDENT_STORE;
 
 	display_object_recall(&object);

@@ -336,7 +336,7 @@ static void borg_flow_spread(int depth, bool optimize, bool avoid, bool tunnelin
 
 
             /* only on legal grids */
-            if (!in_bounds_fully(y,x)) continue;
+            if (!cave_in_bounds_fully(cave, y,x)) continue;
 
             /* Skip "reached" grids */
             if (borg_data_cost->data[y][x] <= n) continue;
@@ -357,7 +357,7 @@ static void borg_flow_spread(int depth, bool optimize, bool avoid, bool tunnelin
 
 
 					/* only on legal grids */
-					if (!in_bounds_fully(yy,xx)) continue;
+					if (!cave_in_bounds_fully(cave, yy,xx)) continue;
 
 					/* Make sure no monster is on this grid, which is
 					 * adjacent to the grid on which, I am thinking about stepping.
@@ -826,7 +826,7 @@ static bool borg_surrounded(void)
         borg_grid *ag = &borg_grids[y][x];
 
 		/* Bound check */
-		if (!in_bounds_fully(y,x)) continue;
+		if (!cave_in_bounds_fully(cave, y,x)) continue;
 
         /* Skip walls/doors */
         if (!borg_cave_floor_grid(ag)) non_safe_grids ++;
@@ -1645,7 +1645,7 @@ bool borg_shoot_scoot_safe(int emergency, int turns, int b_p)
 			 * list in borg_launch_damage_one()
 			 */
     		else if ((borg_danger_aux(kill->y,kill->x,1,i, TRUE, FALSE) > avoidance * 3/10) ||
-    		    ((rf_has(r_ptr->flags, RF_FRIENDS)) /* monster has friends*/ &&
+    		    ((r_ptr->friends || r_ptr->friends_base) /* monster has friends*/ &&
         	 	 kill->level >= borg_skill[BI_CLEVEL] - 5 /* close levels */) ||
         		(kill->ranged_attack /* monster has a ranged attack */) ||
         		(rf_has(r_ptr->flags, RF_UNIQUE)) ||
@@ -3867,7 +3867,7 @@ bool borg_caution(void)
 				y = c_y + ddy_ddd[i];
 
 				/* check for bounds */
-				if (!in_bounds(y,x)) continue;
+				if (!cave_in_bounds(cave, y,x)) continue;
 
 				/* Monster there ? */
 				if (!borg_grids[y][x].kill) continue;
@@ -5847,7 +5847,7 @@ int borg_launch_damage_one(int i, int dam, int typ, int ammo_location)
             if (rf_has(r_ptr->flags, RF_UNIQUE))
             {
                 /* Banish ones with escorts */
-                if (rf_has(r_ptr->flags, RF_ESCORT))
+                if (r_ptr->friends || r_ptr->friends_base)
                 {
                     dam = 0;
                 }
@@ -5874,7 +5874,7 @@ int borg_launch_damage_one(int i, int dam, int typ, int ammo_location)
     /* use Missiles on certain types of monsters */
     if ((borg_skill[BI_CDEPTH] >= 1) &&
          (borg_danger_aux(kill->y,kill->x,1,i, TRUE, TRUE) > avoidance * 2/10 ||
-          (rf_has(r_ptr->flags, RF_FRIENDS) /* monster has friends*/ &&
+          ((r_ptr->friends || r_ptr->friends_base) /* monster has friends*/ &&
            kill->level >= borg_skill[BI_CLEVEL] - 5 /* close levels */) ||
           kill->ranged_attack /* monster has a ranged attack */ ||
           rf_has(r_ptr->flags, RF_UNIQUE) ||
@@ -6133,7 +6133,7 @@ static int borg_launch_bolt_aux(int y, int x, int rad, int dam, int typ, int max
     for (dist = 0; dist < max; dist++)
     {
         /* Bounds Check */
-		if (!in_bounds_fully(y2, x2)) break;
+		if (!cave_in_bounds_fully(cave, y2, x2)) break;
 
 		/* Get the grid of the targetted monster */
         ag = &borg_grids[y2][x2];
@@ -6358,7 +6358,7 @@ static int borg_launch_bolt_aux(int y, int x, int rad, int dam, int typ, int max
 		{
 
 			/* Bounds check */
-			if (!in_bounds(ry, rx)) continue;
+			if (!cave_in_bounds(cave, ry, rx)) continue;
 
 			/* Get the grid */
 			ag = &borg_grids[ry][rx];
@@ -6505,7 +6505,7 @@ static int borg_launch_bolt(int rad, int dam, int typ, int max, int ammo_locatio
 				n = 0;
 
 				/* Bounds check */
-				if (!in_bounds(y,x)) continue;
+				if (!cave_in_bounds(cave, y,x)) continue;
 
 				/* Remember how far away the monster is */
 				d = distance(c_y, c_x, borg_temp_y[i], borg_temp_x[i]);
@@ -14281,7 +14281,7 @@ bool borg_check_rest(int y, int x)
 			for (ii=-1; ii < 1; ii++)
 			{
 				/* check bounds */
-				if (!in_bounds_fully(c_y+i,c_x+ii)) continue;
+				if (!cave_in_bounds_fully(cave, c_y+i,c_x+ii)) continue;
 
 				if (borg_grids[c_y+i][c_x+ii].feat ==FEAT_PERM_INNER) borg_in_vault = TRUE;
 			}
@@ -14565,7 +14565,6 @@ bool borg_recover(void)
          borg_skill[BI_ISFIXWIS] ||
          borg_skill[BI_ISFIXDEX] ||
          borg_skill[BI_ISFIXCON] ||
-         borg_skill[BI_ISFIXCHR] ||
          borg_skill[BI_ISFIXALL]) &&
         borg_prayer(6, 3))
         {
@@ -15112,7 +15111,7 @@ static bool borg_play_step(int y2, int x2)
 						int yy = take->y + borg_ddy_ddd[i];
 
 						/* Check the grid for a take */
-						if(!in_bounds_fully(yy,xx)) continue;
+						if(!cave_in_bounds_fully(cave, yy,xx)) continue;
 						ag2 = &borg_grids[yy][xx];
 						if (ag2->take)
 						{
@@ -15246,19 +15245,6 @@ static bool borg_play_step(int y2, int x2)
 				return (TRUE);
 			}
 
-			/* Bash */
-			borg_note("# Bashing a door");
-			borg_keypress('B');
-			borg_keypress(I2D(dir));
-
-			/* Remove this closed door from the list.
-			* Its faster to clear all doors from the list
-			* then rebuild the list.
-			*/
-			if (track_closed_num)
-			{
-				track_closed_num = 0;
-			}
 			return (TRUE);
 		}
 
@@ -15291,64 +15277,6 @@ static bool borg_play_step(int y2, int x2)
     }
 
 
-
-    /* Jammed Doors -- Bash or destroy */
-    if ((ag->feat >= FEAT_DOOR_HEAD + 0x08) && (ag->feat <= FEAT_DOOR_TAIL))
-    {
-        /* Paranoia XXX XXX XXX */
-        if (!randint0(100)) return (FALSE);
-
-        /* Not if hungry */
-        if (borg_skill[BI_ISHUNGRY]) return (FALSE);
-
-        /* Mega-Hack -- allow "destroy doors" */
-        if (borg_prayer(7, 0))
-        {
-            borg_note("# Unbarring ways");
-            return (TRUE);
-        }
-
-        /* Mega-Hack -- allow "destroy doors" */
-        if (borg_spell(1, 2))
-        {
-            borg_note("# Destroying doors");
-            return (TRUE);
-        }
-
-        /* Mega-Hack -- allow "stone to mud" */
-        if (borg_spell(2, 2) ||
-			borg_activate_ring(SV_RING_DELVING) ||
-			borg_activate_artifact(EF_STONE_TO_MUD))
-        {
-            borg_note("# Melting a door");
-            borg_keypress(I2D(dir));
-
-	        /* Remove this closed door from the list.
-	         * Its faster to clear all doors from the list
-	         * then rebuild the list.
-	         */
-	        if (track_closed_num)
-	        {
-				track_closed_num = 0;
-			}
-            return (TRUE);
-        }
-
-        /* Bash */
-        borg_note("# Bashing a door");
-        borg_keypress('B');
-        borg_keypress(I2D(dir));
-
-        /* Remove this closed door from the list.
-         * Its faster to clear all doors from the list
-         * then rebuild the list.
-         */
-        if (track_closed_num)
-        {
-			track_closed_num = 0;
-		}
-        return (TRUE);
-    }
 
 	/* Rubble, Treasure, Seams, Walls -- Tunnel or Melt */
 	if (ag->feat >= FEAT_SECRET && ag->feat <= FEAT_WALL_SOLID)
@@ -16221,7 +16149,7 @@ bool borg_flow_vault(int nearness)
 	           	b_y = y + ddy_ddd[i];
 
 				/* Bounds check */
-	            if (!in_bounds_fully(b_y, b_x)) continue;
+	            if (!cave_in_bounds_fully(cave, b_y, b_x)) continue;
 
 	           	/* Access the grid */
 	           	ag = &borg_grids[b_y][b_x];
@@ -16312,7 +16240,7 @@ bool borg_excavate_vault(int range)
 	           	b_y = y + ddy_ddd[i];
 
 				/* Bounds check */
-	            if (!in_bounds_fully(b_y, b_x)) continue;
+	            if (!cave_in_bounds_fully(cave, b_y, b_x)) continue;
 
 	           	ag = &borg_grids[b_y][b_x];
 
@@ -16815,7 +16743,7 @@ bool borg_flow_kill_corridor_1(bool viewable)
 			m_x = c_x + o_x + nx[i];
 
 			/* avoid screen edgeds */
-			if (!in_bounds_fully(m_y, m_x))
+			if (!cave_in_bounds_fully(cave, m_y, m_x))
 			{
 				continue;
 			}
@@ -16871,7 +16799,7 @@ bool borg_flow_kill_corridor_1(bool viewable)
 			m_x = c_x + o_x + sx[i];
 
 			/* avoid screen edgeds */
-			if (!in_bounds_fully(m_y, m_x)) continue;
+			if (!cave_in_bounds_fully(cave, m_y, m_x)) continue;
 
 			/* grid the grid */
 			ag = &borg_grids[m_y][m_x];
@@ -16925,7 +16853,7 @@ bool borg_flow_kill_corridor_1(bool viewable)
 			m_x = c_x + o_x + ex[i];
 
 			/* avoid screen edgeds */
-			if (!in_bounds_fully(m_y, m_x)) continue;
+			if (!cave_in_bounds_fully(cave, m_y, m_x)) continue;
 
 			/* grid the grid */
 			ag = &borg_grids[m_y][m_x];
@@ -16980,7 +16908,7 @@ bool borg_flow_kill_corridor_1(bool viewable)
 			m_x = c_x + o_x + wx[i];
 
 			/* avoid screen edgeds */
-			if (!in_bounds_fully(m_y, m_x)) continue;
+			if (!cave_in_bounds_fully(cave, m_y, m_x)) continue;
 
 			/* grid the grid */
 			ag = &borg_grids[m_y][m_x];
@@ -17312,7 +17240,7 @@ bool borg_flow_recover(bool viewable, int dist)
 		for (x = c_x -25; x < c_x + 25; x++)
 		{
 			/* Stay in bounds */
-			if (!in_bounds(y,x)) continue;
+			if (!cave_in_bounds(cave, y,x)) continue;
 
 			/* Skip my own grid */
 			if (y == c_y && x == c_x) continue;
@@ -17522,14 +17450,14 @@ bool borg_flow_kill(bool viewable, int nearness)
         }
 
         /* Hack -- Avoid getting surrounded */
-        if (borg_in_hall && (rf_has(r_info[kill->r_idx].flags, RF_FRIENDS)))
+        if (borg_in_hall && (rf_has(r_info[kill->r_idx].flags, RF_GROUP_AI)))
         {
             /* check to see if monster is in a hall, */
             for (hall_x = -1; hall_x <= 1; hall_x++)
             {
                 for (hall_y = -1; hall_y <= 1; hall_y++)
                 {
-					if (!in_bounds_fully(hall_y + y,hall_x + x)) continue;
+					if (!cave_in_bounds_fully(cave, hall_y + y,hall_x + x)) continue;
                     ag = &borg_grids[hall_y + y][hall_x + x];
 
                     /* track walls */

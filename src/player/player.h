@@ -10,7 +10,6 @@
 #include "monster/monster.h"
 
 /* calcs.c */
-extern const byte adj_chr_gold[STAT_RANGE];
 extern const byte adj_str_blow[STAT_RANGE];
 extern const byte adj_dex_safe[STAT_RANGE];
 extern const byte adj_con_fix[STAT_RANGE];
@@ -48,7 +47,7 @@ extern struct player_class *player_id2class(guid id);
 extern void health_track(struct player *p, struct monster *m_ptr);
 extern void monster_race_track(monster_race *race);
 extern void track_object(int item);
-extern void track_object_kind(int k_idx);
+extern void track_object_kind(struct object_kind *kind);
 extern bool tracked_object_is(int item);
 
 extern bool player_stat_inc(struct player *p, int stat);
@@ -58,6 +57,8 @@ extern void player_exp_lose(struct player *p, s32b amount, bool permanent);
 
 extern byte player_hp_attr(struct player *p);
 extern byte player_sp_attr(struct player *p);
+
+extern bool player_restore_mana(struct player *p, int amt);
 
 extern const char *player_safe_name(struct player *p);
 

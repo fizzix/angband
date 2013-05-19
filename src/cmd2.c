@@ -38,15 +38,13 @@
 void do_cmd_go_up(cmd_code code, cmd_arg args[])
 {
 	/* Verify stairs */
-	if (!cave_isupstairs(cave, p_ptr->py, p_ptr->px))
-	{
+	if (!cave_isupstairs(cave, p_ptr->py, p_ptr->px)) {
 		msg("I see no up staircase here.");
 		return;
 	}
 
-	/* force descend */
-	if (OPT(birth_force_descend))
-	{
+	/* Force descend */
+	if (OPT(birth_force_descend)) {
 		msg("Nothing happens!");
 		return;
 	}
@@ -71,31 +69,28 @@ void do_cmd_go_up(cmd_code code, cmd_arg args[])
  */
 void do_cmd_go_down(cmd_code code, cmd_arg args[])
 {
+	int descend_to = p_ptr->depth + 1;
+
 	/* Verify stairs */
-	if (!cave_isdownstairs(cave, p_ptr->py, p_ptr->px))
-	{
+	if (!cave_isdownstairs(cave, p_ptr->py, p_ptr->px)) {
 		msg("I see no down staircase here.");
 		return;
 	}
-    
-    /* Paranoia, no descent from MAX_DEPTH */
-    if (p_ptr->depth == MAX_DEPTH){
-        
-        msg("The dungeon does not appear to extend deeper");
-        return;
-    }
-    
-    /* Warn a force_descend player if they're going to a quest level */
-    if (OPT(birth_force_descend)){
-    
-        if(is_quest(p_ptr->max_depth + 1)  &&
-           !get_check("Are you sure you want to descend?")){
-              return;
-        }
-        
-        /* Descend one level deeper */
-        p_ptr->depth = p_ptr->max_depth;
-    }    
+
+	/* Paranoia, no descent from MAX_DEPTH-1 */
+	if (p_ptr->depth == MAX_DEPTH-1) {
+		msg("The dungeon does not appear to extend deeper");
+		return;
+	}
+
+	/* Warn a force_descend player if they're going to a quest level */
+	if (OPT(birth_force_descend)) {
+		if (is_quest(p_ptr->max_depth + 1) && !get_check("Are you sure you want to descend?"))
+			return;
+
+		/* Don't overshoot */
+		descend_to = MIN(p_ptr->max_depth + 1, MAX_DEPTH-1);
+	}
 
 	/* Hack -- take a turn */
 	p_ptr->energy_use = 100;
@@ -114,7 +109,7 @@ void do_cmd_go_down(cmd_code code, cmd_arg args[])
 	p_ptr->create_down_stair = FALSE;
 
 	/* Change level */
-	dungeon_change_level(p_ptr->depth + 1);
+	dungeon_change_level(descend_to);
 }
 
 
@@ -183,7 +178,7 @@ int count_feats(int *y, int *x, bool (*test)(struct cave *cave, int y, int x), b
 		xx = p_ptr->px + ddx_ddd[d];
 
 		/* Paranoia */
-		if (!in_bounds_fully(yy, xx)) continue;
+		if (!cave_in_bounds_fully(cave, yy, xx)) continue;
 
 		/* Must have knowledge */
 		if (!(cave->info[yy][xx] & (CAVE_MARK))) continue;
@@ -253,14 +248,8 @@ static bool do_cmd_open_aux(int y, int x)
 	if (!do_cmd_open_test(y, x)) return (FALSE);
 
 
-	/* Jammed door */
-	if (cave_isjammeddoor(cave, y, x))
-	{
-		msg("The door appears to be stuck.");
-	}
-
 	/* Locked door */
-	else if (cave_islockeddoor(cave, y, x))
+	if (cave_islockeddoor(cave, y, x))
 	{
 		/* Disarm factor */
 		i = p_ptr->state.skills[SKILL_DISARM];
@@ -1075,166 +1064,6 @@ void do_cmd_disarm(cmd_code code, cmd_arg args[])
 	if (!more) disturb(p_ptr, 0, 0);
 }
 
-
-/*
- * Determine if a given grid may be "bashed"
- */
-static bool do_cmd_bash_test(int y, int x)
-{
-	/* Must have knowledge */
-	if (!(cave->info[y][x] & (CAVE_MARK))) {
-		msg("You see nothing there.");
-		return (FALSE);
-	}
-
-	if (!cave_iscloseddoor(cave, y, x)) {
-		msg("You see nothing there to bash.");
-		return FALSE;
-	}
-
-	/* Okay */
-	return (TRUE);
-}
-
-
-/*
- * Perform the basic "bash" command
- *
- * Assume there is no monster blocking the destination
- *
- * Returns TRUE if repeated commands may continue
- */
-static bool do_cmd_bash_aux(int y, int x)
-{
-	int bash, temp;
-
-	bool more = FALSE;
-
-
-	/* Verify legality */
-	if (!do_cmd_bash_test(y, x)) return (FALSE);
-
-
-	/* Message */
-	msg("You smash into the door!");
-
-	/* Hack -- Bash power based on strength */
-	/* (Ranges from 3 to 20 to 100 to 200) */
-	bash = adj_str_blow[p_ptr->state.stat_ind[A_STR]];
-
-	/* Extract door power */
-	temp = cave_door_power(cave, y, x);
-
-	/* Compare bash power to door power */
-	temp = (bash - (temp * 10));
-
-	/* Hack -- always have a chance */
-	if (temp < 1) temp = 1;
-
-	/* Hack -- attempt to bash down the door */
-	if (randint0(100) < temp)
-	{
-		if (randint0(100) < 50)
-			cave_smash_door(cave, y, x);
-		else
-			cave_open_door(cave, y, x);
-
-		msgt(MSG_OPENDOOR, "The door crashes open!");
-
-		/* Update the visuals */
-		p_ptr->update |= (PU_UPDATE_VIEW | PU_MONSTERS);
-	}
-
-	/* Saving throw against stun */
-	else if (randint0(100) < adj_dex_safe[p_ptr->state.stat_ind[A_DEX]] +
-	         p_ptr->lev) {
-		msg("The door holds firm.");
-
-		/* Allow repeated bashing */
-		more = TRUE;
-	}
-
-	/* Low dexterity has bad consequences */
-	else {
-		msg("You are off-balance.");
-
-		/* Lose balance ala stun */
-		(void)player_inc_timed(p_ptr, TMD_STUN, 2 + randint0(2), TRUE, FALSE);
-	}
-
-	/* Result */
-	return more;
-}
-
-
-/*
- * Bash open a door, success based on character strength
- *
- * For a closed door, pval is positive if locked; negative if stuck.
- *
- * For an open door, pval is positive for a broken door.
- *
- * A closed door can be opened - harder if locked. Any door might be
- * bashed open (and thereby broken). Bashing a door is (potentially)
- * faster! You move into the door way. To open a stuck door, it must
- * be bashed. A closed door can be jammed (see do_cmd_spike()).
- *
- * Creatures can also open or bash doors, see elsewhere.
- */
-void do_cmd_bash(cmd_code code, cmd_arg args[])
-{
-	int y, x, dir;
-	bool more = FALSE;
-
-	dir = args[0].direction;
-
-	/* Get location */
-	y = p_ptr->py + ddy[dir];
-	x = p_ptr->px + ddx[dir];
-
-
-	/* Verify legality */
-	if (!do_cmd_bash_test(y, x))
-	{
-		/* Cancel repeat */
-		disturb(p_ptr, 0, 0);
-		return;
-	}
-
-	/* Take a turn */
-	p_ptr->energy_use = 100;
-
-	/* Apply confusion */
-	if (player_confuse_dir(p_ptr, &dir, FALSE))
-	{
-		/* Get location */
-		y = p_ptr->py + ddy[dir];
-		x = p_ptr->px + ddx[dir];
-	}
-
-
-	/* Monster */
-	if (cave->m_idx[y][x] > 0)
-	{
-		/* Message */
-		msg("There is a monster in the way!");
-
-		/* Attack */
-		py_attack(y, x);
-	}
-
-	/* Door */
-	else
-	{
-		/* Bash the door */
-		more = do_cmd_bash_aux(y, x);
-	}
-
-	/* Cancel repeat unless we may continue */
-	if (!more) disturb(p_ptr, 0, 0);
-}
-
-
 /*
  * Manipulate an adjacent grid in some way
  *
@@ -1293,139 +1122,6 @@ void do_cmd_alter(cmd_code code, cmd_arg args[])
 {
 	do_cmd_alter_aux(args[0].direction);
 }
-
-
-/*
- * Find the index of some "spikes", if possible.
- *
- * XXX XXX XXX Let user choose a pile of spikes, perhaps?
- */
-static bool get_spike(int *ip)
-{
-	int i;
-
-	/* Check every item in the pack */
-	for (i = 0; i < INVEN_PACK; i++)
-	{
-		object_type *o_ptr = &p_ptr->inventory[i];
-
-		/* Skip non-objects */
-		if (!o_ptr->kind) continue;
-
-		/* Check the "tval" code */
-		if (o_ptr->tval == TV_SPIKE)
-		{
-			/* Save the spike index */
-			(*ip) = i;
-
-			/* Success */
-			return (TRUE);
-		}
-	}
-
-	/* Oops */
-	return (FALSE);
-}
-
-
-/*
- * Determine if a given grid may be "spiked"
- */
-static bool do_cmd_spike_test(int y, int x)
-{
-	/* Must have knowledge */
-	if (!(cave->info[y][x] & (CAVE_MARK))) {
-		msg("You see nothing there.");
-		return FALSE;
-	}
-
-	/* Check if door is closed */
-	if (!cave_iscloseddoor(cave, y, x)) {
-		msg("You see nothing there to spike.");
-		return FALSE;
-	}
-
-	/* Check that the door is not fully spiked */
-	if (!cave_can_jam_door(cave, y, x)) {
-		msg("You can't use more spikes on this door.");
-		return FALSE;
-	}
-
-	/* Okay */
-	return TRUE;
-}
-
-
-/*
- * Jam a closed door with a spike
- *
- * This command may NOT be repeated
- */
-void do_cmd_spike(cmd_code code, cmd_arg args[])
-{
-	int y, x, dir, item = 0;
-
-	dir = args[0].direction;
-
-	/* Get a spike */
-	if (!get_spike(&item))
-	{
-		/* Message */
-		msg("You have no spikes!");
-
-		/* Done */
-		return;
-	}
-
-	/* Get location */
-	y = p_ptr->py + ddy[dir];
-	x = p_ptr->px + ddx[dir];
-
-
-	/* Verify legality */
-	if (!do_cmd_spike_test(y, x)) return;
-
-
-	/* Take a turn */
-	p_ptr->energy_use = 100;
-
-	/* Apply confusion */
-	if (player_confuse_dir(p_ptr, &dir, FALSE))
-	{
-		/* Get location */
-		y = p_ptr->py + ddy[dir];
-		x = p_ptr->px + ddx[dir];
-	}
-
-
-	/* Monster */
-	if (cave->m_idx[y][x] > 0)
-	{
-		/* Message */
-		msg("There is a monster in the way!");
-
-		/* Attack */
-		py_attack(y, x);
-	}
-
-	/* Go for it */
-	else
-	{
-		/* Verify legality */
-		if (!do_cmd_spike_test(y, x)) return;
-
-		/* Successful jamming */
-		msg("You jam the door with a spike.");
-
-		cave_jam_door(cave, y, x);
-
-		/* Use up, and describe, a single spike, from the bottom */
-		inven_item_increase(item, -1);
-		inven_item_describe(item);
-		inven_item_optimize(item);
-	}
-}
-
 
 /*
  * Determine if a given grid may be "walked"

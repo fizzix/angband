@@ -487,10 +487,18 @@ static void player_outfit(struct player *p)
 	{
 		/* Get local object */
 		struct object *i_ptr = &object_type_body;
+		int num = rand_range(si->min, si->max);
+
+		/* Without start_kit, only start with 1 food and 1 light */
+		if (!OPT(birth_start_kit)) {
+			if (si->kind->tval != TV_FOOD && si->kind->tval != TV_LIGHT)
+				continue;
+			num = 1;
+		}
 
 		/* Prepare the item */
 		object_prep(i_ptr, si->kind, 0, MINIMISE);
-		i_ptr->number = (byte)rand_range(si->min, si->max);
+		i_ptr->number = num;
 		i_ptr->origin = ORIGIN_BIRTH;
 
 		object_flavor_aware(i_ptr);
@@ -642,7 +650,7 @@ static bool sell_stat(int choice, int stats[A_MAX], int points_spent[A_MAX],
  *    but only up to max base of 16 unless a pure class 
  *    [mage or priest or warrior]
  * 3. If there are any points left, spend as much as possible in order 
- *    on DEX, non-spell-stat, CHR. 
+ *    on DEX and then the non-spell-stat.
  */
 static void generate_stats(int stats[A_MAX], int points_spent[A_MAX], 
 						   int *points_left)
@@ -756,12 +764,10 @@ static void generate_stats(int stats[A_MAX], int points_spent[A_MAX],
 					   points_spent[A_CON] < points_trigger) {
 					   
 					if (!buy_stat(A_CON, stats, points_spent,points_left, FALSE)) {
-					
 						maxed[A_CON] = TRUE;
 					}
 					
 					if (points_spent[A_CON] > points_trigger) {
-					
 						sell_stat(A_CON, stats, points_spent, points_left, FALSE);
 						maxed[A_CON] = TRUE;
 					}
@@ -773,28 +779,19 @@ static void generate_stats(int stats[A_MAX], int points_spent[A_MAX],
 
 			/* 
 			 * If there are any points left, spend as much as possible in 
-			 * order on DEX, non-spell-stat, CHR. 
+			 * order on DEX, and the non-spell-stat. 
 			 */
 			case 4:{
 			
 				int next_stat;
 
 				if (!maxed[A_DEX]) {
-				
 					next_stat = A_DEX;
-					
 				} else if (!maxed[A_INT] && p_ptr->class->spell_stat != A_INT) {
-				
 					next_stat = A_INT;
-					
 				} else if (!maxed[A_WIS] && p_ptr->class->spell_stat != A_WIS) {
-				
 					next_stat = A_WIS;
-				} else if (!maxed[A_CHR]) {
-				
-					next_stat = A_CHR;
 				} else {
-				
 					step++;
 					break;
 				}
@@ -917,19 +914,11 @@ void player_birth(bool quickstart_allowed)
 	if (quickstart_allowed)
 		save_roller_data(&quickstart_prev);
 	else
-	{
-		p_ptr->psex = 0;
-		/* XXX default race/class */
-		p_ptr->class = classes;
-		p_ptr->race = races;
-		player_generate(p_ptr, NULL, NULL, NULL);
-	}
+		player_generate(p_ptr, &sex_info[p_ptr->psex], player_id2race(0), player_id2class(0));
 
 	/* Handle incrementing name suffix */
 	buf = find_roman_suffix_start(op_ptr->full_name);
-
-	if (buf)
-	{
+	if (buf) {
 		/* Try to increment the roman suffix */
 		success = int_to_roman((roman_to_int(buf) + 1), buf,
 			(sizeof(op_ptr->full_name) - (buf -
@@ -1102,7 +1091,7 @@ void player_birth(bool quickstart_allowed)
 	get_money();
 
 	/* Outfit the player, if they can sell the stuff */
-	if (!OPT(birth_no_selling)) player_outfit(p_ptr);
+	player_outfit(p_ptr);
 
 	/* Initialise the stores */
 	store_reset();

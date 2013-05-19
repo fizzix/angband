@@ -64,9 +64,7 @@ static const grouper object_text_order[] =
 	{TV_DRAG_ARMOR,		"Dragon Scale Mail" },
 	{TV_HARD_ARMOR,		"Hard Armor"	},
 	{TV_SOFT_ARMOR,		"Soft Armor"	},
-	{TV_SPIKE,			"Spike"			},
 	{TV_DIGGING,		"Digger"		},
-	{TV_JUNK,			"Junk"			},
 	{0,					NULL			}
 };
 
@@ -1774,7 +1772,7 @@ static void desc_obj_fake(int k_idx)
 	}
 
 	/* Update the object recall window */
-	track_object_kind(k_idx);
+	track_object_kind(kind);
 	handle_stuff(p_ptr);
 
 	/* Wipe the object */

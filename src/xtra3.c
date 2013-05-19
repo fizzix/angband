@@ -490,7 +490,6 @@ static void prt_dex(int row, int col) { prt_stat(A_DEX, row, col); }
 static void prt_wis(int row, int col) { prt_stat(A_WIS, row, col); }
 static void prt_int(int row, int col) { prt_stat(A_INT, row, col); }
 static void prt_con(int row, int col) { prt_stat(A_CON, row, col); }
-static void prt_chr(int row, int col) { prt_stat(A_CHR, row, col); }
 static void prt_race(int row, int col) { prt_field(p_ptr->race->name, row, col); }
 static void prt_class(int row, int col) { prt_field(p_ptr->class->name, row, col); }
 
@@ -517,7 +516,6 @@ static const struct side_handler_t
 	{ prt_wis,      4, EVENT_STATS },
 	{ prt_dex,      3, EVENT_STATS },
 	{ prt_con,      2, EVENT_STATS },
-	{ prt_chr,      1, EVENT_STATS },
 	{ NULL,        15, 0 },
 	{ prt_ac,       7, EVENT_AC },
 	{ prt_hp,       8, EVENT_HP },
@@ -644,7 +642,6 @@ static const struct state_info hunger_data[] =
 	{ PY_FOOD_ALERT, S("Hungry"),   TERM_YELLOW },
 	{ PY_FOOD_FULL,  S(""),         TERM_L_GREEN },
 	{ PY_FOOD_MAX,   S("Full"),     TERM_L_GREEN },
-	{ PY_FOOD_UPPER, S("Gorged"),   TERM_GREEN },
 };
 
 /* For the various TMD_* effects */
@@ -1223,8 +1220,8 @@ static void update_object_subwindow(game_event_type type, game_event_data *data,
 	
 	if (p_ptr->object_idx != NO_OBJECT)
 		display_object_idx_recall(p_ptr->object_idx);
-	else if(p_ptr->object_kind_idx != NO_OBJECT)
-		display_object_kind_recall(p_ptr->object_kind_idx);
+	else if (p_ptr->object_kind)
+		display_object_kind_recall(p_ptr->object_kind);
 	Term_fresh();
 	
 	/* Restore */
