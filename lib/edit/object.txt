@@ -1902,7 +1902,7 @@ N:293:Deep Descent
 G:?:w
 I:70:32
 W:10:0:5:250
-A:20:1 to 100
+A:0:1 to 100
 M:20:2
 F:EASY_KNOW
 E:DEEP_DESCENT
