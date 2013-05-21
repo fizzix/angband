@@ -96,9 +96,9 @@ void do_cmd_go_down(cmd_code code, cmd_arg args[])
 	p_ptr->energy_use = 100;
     
     /* Prompt for extra descent */
-    if (!is_quest(p_ptr->max_depth + 1) && 
+    if (!is_quest(descend_to) && 
         get_check("Would you like to descend an extra level?")){
-            p_ptr->depth += 1;
+            descend_to += 1;
     }
     
 	/* Success */
