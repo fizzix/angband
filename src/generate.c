@@ -259,7 +259,7 @@ static struct cave_profile cave_profiles[NUM_CAVE_PROFILES] = {
 		NULL,
 
 		/* cutoff -- unused because of internal checks in labyrinth_gen  */
-		100
+		0
 	},
 	{
 		"cavern", cavern_gen, 0, 200, 0, 0,
@@ -274,7 +274,7 @@ static struct cave_profile cave_profiles[NUM_CAVE_PROFILES] = {
 		NULL,
 
 		/* cutoff -- debug  */
-		10
+		0
 	},
 	{
 		/* name builder dun_rooms dun_unusual max_rarity n_room_profiles */
