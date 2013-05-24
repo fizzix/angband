@@ -3919,7 +3919,14 @@ void cave_generate(struct cave *c, struct player *p) {
 		    dun->profile = &cave_profiles[NUM_CAVE_PROFILES - 1];
 			dun->profile->builder(c, p);
 			
-		} else {	
+		} else 
+		/* Disable caverns and labyrinths */
+		{
+			dun->profile = &cave_profiles[NUM_CAVE_PROFILES - 1];
+			dun->profile->builder(c, p);
+		}
+			
+		/*{	
 			int perc = randint0(100);
 			int last = NUM_CAVE_PROFILES - 1;
 			int i;
@@ -3933,7 +3940,7 @@ void cave_generate(struct cave *c, struct player *p) {
 				ok = dun->profile->builder(c, p);
 				if (ok) break;
 			}
-		}
+		}*/
 
 		/* Ensure quest monsters */
 		if (is_quest(c->depth)) {
