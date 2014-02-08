@@ -3,7 +3,7 @@
  * Purpose: Store stocking and UI
  *
  * Copyright (c) 1997 Robert A. Koeneke, James E. Wilson, Ben Harrison
- * Copyright (c) 2007 Andrew Sidwell, who rewrote a fair portion
+ * Copyright (c) 2007 Andi Sidwell, who rewrote a fair portion
  *
  * This work is free software; you can redistribute it and/or modify it
  * under the terms of either:
@@ -55,25 +55,16 @@ enum
 static unsigned int scr_places_x[LOC_MAX];
 static unsigned int scr_places_y[LOC_MAX];
 
-
 /* State flags */
 #define STORE_GOLD_CHANGE      0x01
 #define STORE_FRAME_CHANGE     0x02
-
 #define STORE_SHOW_HELP        0x04
-
-
-
-
 
 /* Compound flag for the initial display of a store */
 #define STORE_INIT_CHANGE		(STORE_FRAME_CHANGE | STORE_GOLD_CHANGE)
 
-
-
 /* Some local constants */
 #define STORE_OBJ_LEVEL 5       /* Magic Level for normal stores */
-
 
 
 /** Variables to maintain state XXX ***/
@@ -81,15 +72,14 @@ static unsigned int scr_places_y[LOC_MAX];
 /* Flags for the display */
 static u16b store_flags;
 
-
+/* Are we in store? */
+bool store_in_store = FALSE;
 
 
 /*** Utilities ***/
 
-
 /* Randomly select one of the entries in an array */
 #define ONE_OF(x)	x[randint0(N_ELEMENTS(x))]
-
 
 
 /*** Flavour text stuff ***/
@@ -110,7 +100,7 @@ static const char *comment_welcome[] =
 	"%s: \"A pleasure to see you again, %s.\"",
 	"%s: \"How may I be of assistance, good %s?\"",
 	"%s: \"You do honour to my humble store, noble %s.\"",
-	"%s: \"I and my family are entirely at your service, glorious %s.\""
+	"%s: \"I and my family are entirely at your service, %s.\""
 };
 
 static const char *comment_hint[] =
@@ -207,6 +197,8 @@ void free_stores(void)
 			string_free(o->name);
 			mem_free(o);
 		}
+
+		string_free((void *)store->name);
 	}
 	mem_free(stores);
 }
@@ -386,6 +378,41 @@ void store_reset(void) {
 
 
 
+
+/**
+ * Check if a given item kind is an always-stocked item.
+ */
+static bool store_is_staple(struct store *s, object_kind *k) {
+	size_t i;
+
+	assert(s);
+	assert(k);
+
+	for (i = 0; i < s->always_num; i++) {
+		object_kind *l = s->always_table[i];
+		if (k == l)
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
+/**
+ * Check if a given item kind is an always-stocked or sometimes-stocked item.
+ */
+static bool store_can_carry(struct store *store, struct object_kind *kind) {
+	size_t i;
+
+	for (i = 0; i < store->normal_num; i++) {
+		if (store->normal_table[i] == kind)
+			return TRUE;
+	}
+
+	return store_is_staple(store, kind);
+}
+
+
+
 /*
  * The greeting a shopkeeper gives the character says a lot about his
  * general attitude.
@@ -422,7 +449,14 @@ static void prt_welcome(const owner_type *ot_ptr)
 		/* Get a title for the character */
 		if ((i % 2) && randint0(2)) player_name = p_ptr->class->title[(p_ptr->lev - 1) / 5];
 		else if (randint0(2))       player_name = op_ptr->full_name;
-		else                        player_name = (p_ptr->psex == SEX_MALE ? "sir" : "lady");
+		else {
+			switch (p_ptr->psex) {
+				case SEX_MALE:   player_name = "sir"; break;
+				case SEX_FEMALE: player_name = "madam"; break;
+				case SEX_NEUTER:
+				default:         player_name = "ser"; break;
+			}
+		}
 
 		/* Balthazar says "Welcome" */
 		prt(format(comment_welcome[i], short_name, player_name), 0, 0);
@@ -1088,17 +1122,8 @@ static int store_carry(struct store *store, object_type *o_ptr)
 		case TV_STAFF:
 		case TV_WAND:
 		{
-			bool recharge = FALSE;
-
-			/* Recharge without fail if the store normally carries that type */
-			for (i = 0; i < store->normal_num; i++)
-			{
-				if (store->normal_table[i] == o_ptr->kind)
-					recharge = TRUE;
-			}
-
-			if (recharge)
-			{
+			/* If the store can stock this item kind, we recharge */
+			if (store_can_carry(store, o_ptr->kind)) {
 				int charges = 0;
 
 				/* Calculate the recharged number of charges */
@@ -1317,23 +1342,6 @@ static object_type *store_find_kind(struct store *s, object_kind *k) {
 	return NULL;
 }
 
-/**
- * Check if a given item kind is an always-stocked item.
- */
-static bool store_is_staple(struct store *s, object_kind *k) {
-	size_t i;
-
-	assert(s);
-	assert(k);
-
-	for (i = 0; i < s->always_num; i++) {
-		object_kind *l = s->always_table[i];
-		if (k == l)
-			return TRUE;
-	}
-
-	return FALSE;
-}
 
 /*
  * Delete a random object from store 'st', or, if it is a stack, perhaps only
@@ -1917,50 +1925,42 @@ static void store_display_help(void)
 	text_out_indent = 1;
 	Term_gotoxy(1, help_loc);
 
-	text_out("Use the ");
-	text_out_c(TERM_L_GREEN, "movement keys");
-	text_out(" to navigate, or ");
-	text_out_c(TERM_L_GREEN, "Space");
-	text_out(" to advance to the next page. '");
-
 	if (OPT(rogue_like_commands))
 		text_out_c(TERM_L_GREEN, "x");
 	else
 		text_out_c(TERM_L_GREEN, "l");
 
-	text_out("' examines");
+	text_out(" examines");
 	if (store_knowledge == STORE_NONE)
 	{
-		text_out(" and '");
+		text_out(" and ");
 		text_out_c(TERM_L_GREEN, "p");
 
-		if (is_home) text_out("' picks up");
-		else text_out("' purchases");
+		if (is_home) text_out(" picks up");
+		else text_out(" purchases");
 	}
-	text_out(" the selected item. '");
+	text_out(" the selected item. ");
 
-	if (store_knowledge == STORE_NONE)
-	{
-		text_out_c(TERM_L_GREEN, "d");
-		if (is_home) text_out("' drops");
-		else text_out("' sells");
-	}
-	else
-	{
+	if (store_knowledge == STORE_NONE) {
+		if (OPT(birth_no_selling)) {
+			text_out_c(TERM_L_GREEN, "d");
+			text_out(" gives an item to the store in return for its identification. Some wands and staves will also be recharged. ");
+		} else {
+			text_out_c(TERM_L_GREEN, "d");
+			if (is_home) text_out(" drops");
+			else text_out(" sells");
+			text_out(" an item from your inventory. ");
+		}
+	} else {
 		text_out_c(TERM_L_GREEN, "I");
-		text_out("' inspects");
+		text_out("' inspects an item from your inventory. ");
 	}
-	text_out(" an item from your inventory. ");
 
 	text_out_c(TERM_L_GREEN, "ESC");
 	if (store_knowledge == STORE_NONE)
-	{
 		text_out(" exits the building.");
-	}
 	else
-	{
 		text_out(" exits this screen.");
-	}
 
 	text_out_indent = 0;
 }
@@ -2393,7 +2393,11 @@ static bool store_purchase(int item)
 		}
 
 		/* Work out how many the player can afford */
-		amt = p_ptr->au / price;
+		if (price == 0)
+			amt = o_ptr->number; /* Prevent division by zero */
+		else
+			amt = p_ptr->au / price;
+
 		if (amt > o_ptr->number) amt = o_ptr->number;
 		
 		/* Double check for wands/staves */
@@ -2477,10 +2481,23 @@ static bool store_purchase(int item)
 static bool store_will_buy_tester(const object_type *o_ptr)
 {
 	struct store *store = current_store();
-	if (store)
-		return store_will_buy(store, o_ptr);
+	if (!store) return FALSE;
 
-	return FALSE;
+	if (OPT(birth_no_selling)) {
+		switch (o_ptr->tval) {
+			case TV_STAFF:
+			case TV_WAND:
+				if (!store_can_carry(store, o_ptr->kind) && object_is_known(o_ptr))
+					return FALSE;
+				break;
+
+			default:
+				if (object_is_known(o_ptr))
+					return FALSE;
+		}
+	}
+
+	return store_will_buy(store, o_ptr);
 }
 
 /*
@@ -2546,7 +2563,6 @@ void do_cmd_sell(cmd_code code, cmd_arg args[])
 
 	/* Get the "apparent" value */
 	dummy = object_value(&sold_item, amt, FALSE);
-/*	msg("Dummy is %d", dummy); */
 
 	/* Identify original object */
 	object_notice_everything(o_ptr);
@@ -2565,17 +2581,19 @@ void do_cmd_sell(cmd_code code, cmd_arg args[])
 
 	/* Get the "actual" value */
 	value = object_value(&sold_item, amt, FALSE);
-/*	msg("Value is %d", value); */
 
 	/* Get the description all over again */
 	object_desc(o_name, sizeof(o_name), &sold_item, ODESC_PREFIX | ODESC_FULL);
 
 	/* Describe the result (in message buffer) */
-	msg("You sold %s (%c) for %ld gold.",
-		o_name, index_to_label(item), (long)price);
+	if (OPT(birth_no_selling)) {
+		msg("You had %s (%c).", o_name, index_to_label(item));
+	} else {
+		msg("You sold %s (%c) for %ld gold.", o_name, index_to_label(item), (long)price);
 
-	/* Analyze the prices (and comment verbally) */
-	purchase_analyze(price, value, dummy);
+		/* Analyze the prices (and comment verbally) */
+		purchase_analyze(price, value, dummy);
+	}
 
 	/* Set squelch flag */
 	p_ptr->notice |= PN_SQUELCH;
@@ -2672,12 +2690,12 @@ static bool store_sell(void)
 
 
 	const char *reject = "You have nothing that I want. ";
-	const char *prompt = "Sell which item? ";
+	const char *prompt = OPT(birth_no_selling) ? "Give which item? " : "Sell which item? ";
 
 	struct store *store = current_store();
 
 	if (!store) {
-		msg("You cannot sell items when not in a store.");
+		msg("You cannot %s items when not in a store.", OPT(birth_no_selling) ? "give" : "sell");
 		return FALSE;
 	}
 
@@ -2724,7 +2742,6 @@ static bool store_sell(void)
 	{
 		if (store->sidx == STORE_HOME)
 			msg("Your home is full.");
-
 		else
 			msg("I have not the room in my store to keep it.");
 
@@ -2743,10 +2760,12 @@ static bool store_sell(void)
 		screen_save();
 
 		/* Show price */
-		prt(format("Price: %d", price), 1, 0);
+		if (!OPT(birth_no_selling)) prt(format("Price: %d", price), 1, 0);
 
 		/* Confirm sale */
-		if (!store_get_check(format("Sell %s? [ESC, any other key to accept]", o_name)))
+		if (!store_get_check(format("%s %s? [ESC, any other key to accept]",
+				OPT(birth_no_selling) ? "Give" : "Sell",
+				o_name)))
 		{
 			screen_load();
 			return FALSE;
@@ -2794,8 +2813,7 @@ static void store_examine(int item)
 	msg_flag = FALSE;
 
 	/* Show full info in most stores, but normal info in player home */
-	tb = object_info(o_ptr, (store->sidx != STORE_HOME) ? OINFO_FULL :
-		OINFO_NONE);
+	tb = object_info(o_ptr, (store->sidx != STORE_HOME) ? OINFO_FULL : OINFO_NONE);
 	object_desc(header, sizeof(header), o_ptr, ODESC_PREFIX | ODESC_FULL |
 		ODESC_STORE);
 
@@ -3133,6 +3151,9 @@ void do_cmd_store(cmd_code code, cmd_arg args[])
 	event_signal(EVENT_LEAVE_GAME);
 	event_signal(EVENT_ENTER_STORE);
 
+	/* XXX ick */
+	store_in_store = TRUE;
+
 	/* Forget the view */
 	forget_view(cave);
 
@@ -3166,6 +3187,9 @@ void do_cmd_store(cmd_code code, cmd_arg args[])
 	/* Switch back to the normal game view. */
 	event_signal(EVENT_LEAVE_STORE);
 	event_signal(EVENT_ENTER_GAME);
+
+	/* XXX ick */
+	store_in_store = TRUE;
 
 	/* Take a turn */
 	p_ptr->energy_use = 100;

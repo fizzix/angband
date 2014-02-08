@@ -4,11 +4,196 @@
 #define CAVE_H
 
 #include "defines.h"
-#include "types.h"
 #include "z-type.h"
 
 struct player;
 struct monster;
+
+/*** Constants ***/
+
+
+/*** Feature Indexes (see "lib/edit/terrain.txt") ***/
+
+/* Nothing */
+#define FEAT_NONE 0x00
+
+/* Various */
+#define FEAT_FLOOR 0x01
+#define FEAT_INVIS 0x02
+#define FEAT_GLYPH 0x03
+#define FEAT_OPEN 0x04
+#define FEAT_BROKEN 0x05
+#define FEAT_LESS 0x06
+#define FEAT_MORE 0x07
+
+/* Shops */
+#define FEAT_SHOP_HEAD 0x08
+#define FEAT_SHOP_TAIL 0x0F
+
+/* Traps */
+#define FEAT_TRAP_HEAD 0x10
+#define FEAT_TRAP_TAIL 0x1F
+
+/* Doors */
+#define FEAT_DOOR_HEAD 0x20
+#define FEAT_DOOR_TAIL 0x2F
+
+/* Secret door */
+#define FEAT_SECRET 0x30
+
+/* Rubble */
+#define FEAT_RUBBLE 0x31
+
+/* Mineral seams */
+#define FEAT_MAGMA 0x32
+#define FEAT_QUARTZ 0x33
+#define FEAT_MAGMA_H 0x34
+#define FEAT_QUARTZ_H 0x35
+#define FEAT_MAGMA_K 0x36
+#define FEAT_QUARTZ_K 0x37
+
+/* Walls */
+#define FEAT_WALL_EXTRA 0x38
+#define FEAT_WALL_INNER 0x39
+#define FEAT_WALL_OUTER 0x3A
+#define FEAT_WALL_SOLID 0x3B
+#define FEAT_PERM_EXTRA 0x3C
+#define FEAT_PERM_INNER 0x3D
+#define FEAT_PERM_OUTER 0x3E
+#define FEAT_PERM_SOLID 0x3F
+
+
+
+/*
+ * Special cave grid flags
+ */
+#define CAVE_MARK		0x01 	/* memorized feature */
+#define CAVE_GLOW		0x02 	/* self-illuminating */
+#define CAVE_VAULT		0x04 	/* part of a vault */
+#define CAVE_ROOM		0x08 	/* part of a room */
+#define CAVE_SEEN		0x10 	/* seen flag */
+#define CAVE_VIEW		0x20 	/* view flag */
+#define CAVE_WASSEEN		0x40 	/* previously seen (during update) */
+#define CAVE_WALL		0x80 	/* wall flag */
+
+#define CAVE2_DTRAP		0x01	/* trap detected grid */
+#define CAVE2_FEEL		0x02	/* hidden points to trigger feelings*/
+#define CAVE2_DEDGE		0x04	/* border of trap detected area */
+#define CAVE2_VERT		0x08	/* use an alternate visual for this grid */
+
+
+/*
+ * Terrain flags
+ */
+enum
+{
+	FF_NONE,
+	FF_PWALK,
+	FF_PPASS,
+	FF_MWALK,
+	FF_MPASS,
+	FF_LOOK,
+	FF_DIG,
+	FF_DOOR,
+	FF_EXIT_UP,
+	FF_EXIT_DOWN,
+	FF_PERM,
+	FF_TRAP,
+	FF_SHOP,
+	FF_HIDDEN,
+	FF_BORING,
+	FF_MAX
+};
+
+#define FF_SIZE               FLAG_SIZE(FF_MAX)
+
+#define ff_has(f, flag)        flag_has_dbg(f, FF_SIZE, flag, #f, #flag)
+#define ff_next(f, flag)       flag_next(f, FF_SIZE, flag)
+#define ff_is_empty(f)         flag_is_empty(f, FF_SIZE)
+#define ff_is_full(f)          flag_is_full(f, FF_SIZE)
+#define ff_is_inter(f1, f2)    flag_is_inter(f1, f2, FF_SIZE)
+#define ff_is_subset(f1, f2)   flag_is_subset(f1, f2, FF_SIZE)
+#define ff_is_equal(f1, f2)    flag_is_equal(f1, f2, FF_SIZE)
+#define ff_on(f, flag)         flag_on_dbg(f, FF_SIZE, flag, #f, #flag)
+#define ff_off(f, flag)        flag_off(f, FF_SIZE, flag)
+#define ff_wipe(f)             flag_wipe(f, FF_SIZE)
+#define ff_setall(f)           flag_setall(f, FF_SIZE)
+#define ff_negate(f)           flag_negate(f, FF_SIZE)
+#define ff_copy(f1, f2)        flag_copy(f1, f2, FF_SIZE)
+#define ff_union(f1, f2)       flag_union(f1, f2, FF_SIZE)
+#define ff_comp_union(f1, f2)  flag_comp_union(f1, f2, FF_SIZE)
+#define ff_inter(f1, f2)       flag_inter(f1, f2, FF_SIZE)
+#define ff_diff(f1, f2)        flag_diff(f1, f2, FF_SIZE)
+
+
+
+
+/**
+ * Information about terrain features.
+ *
+ * At the moment this isn't very much, but eventually a primitive flag-based
+ * information system will be used here.
+ */
+typedef struct feature
+{
+	char *name;
+	int fidx;
+
+	struct feature *next;
+
+	byte mimic;    /**< Feature to mimic */
+	byte priority; /**< Display priority */
+
+	byte locked;   /**< How locked is it? */
+	byte jammed;   /**< How jammed is it? */
+	byte shopnum;  /**< Which shop does it take you to? */
+	byte dig;      /**< How hard is it to dig through? */
+
+	u32b effect;   /**< Effect on entry to grid */
+	bitflag flags[FF_SIZE];    /**< Terrain flags */
+
+	byte d_attr;   /**< Default feature attribute */
+	wchar_t d_char;   /**< Default feature character */
+
+	byte x_attr[4];   /**< Desired feature attribute (set by user/pref file) */
+	wchar_t x_char[4];   /**< Desired feature character (set by user/pref file) */
+} feature_type;
+
+enum grid_light_level
+{
+	FEAT_LIGHTING_LOS = 0,   /* line of sight */
+	FEAT_LIGHTING_TORCH,     /* torchlight */
+	FEAT_LIGHTING_LIT,       /* permanently lit (when not in line of sight) */
+	FEAT_LIGHTING_DARK,      /* dark */
+	FEAT_LIGHTING_MAX
+};
+
+typedef struct
+{
+	u32b m_idx;		/* Monster index */
+	u32b f_idx;		/* Feature index */
+	struct object_kind *first_kind;	/* The "kind" of the first item on the grid */
+	bool multiple_objects;	/* Is there more than one item there? */
+	bool unseen_object;	/* Is there an unaware object there? */
+	bool unseen_money; /* Is there some unaware money there? */
+
+	enum grid_light_level lighting; /* Light level */
+	bool in_view; /* TRUE when the player can currently see the grid. */
+	bool is_player;
+	bool hallucinate;
+	bool trapborder;
+} grid_data;
+
+
+
+/** An array of 256 bytes */
+typedef byte byte_256[256];
+
+/** An array of DUNGEON_WID bytes */
+typedef byte byte_wid[DUNGEON_WID];
+
+/** An array of DUNGEON_WID s16b's */
+typedef s16b s16b_wid[DUNGEON_WID];
 
 struct cave {
 	s32b created_at;
@@ -43,6 +228,7 @@ extern bool no_light(void);
 extern bool cave_valid_bold(int y, int x);
 extern byte get_color(byte a, int attr, int n);
 extern void map_info(unsigned x, unsigned y, grid_data *g);
+extern void grid_data_as_text(grid_data *g, int *ap, wchar_t *cp, int *tap, wchar_t *tcp);
 extern void move_cursor_relative(int y, int x);
 extern void print_rel(wchar_t c, byte a, int y, int x);
 extern void prt_map(void);
@@ -84,7 +270,9 @@ typedef bool (*cave_predicate)(struct cave *c, int y, int x);
 extern bool cave_isfloor(struct cave *c, int y, int x);
 extern bool cave_isrock(struct cave *c, int y, int x);
 extern bool cave_isperm(struct cave *c, int y, int x);
+extern bool feat_is_magma(int feat);
 extern bool cave_ismagma(struct cave *c, int y, int x);
+extern bool feat_is_quartz(int feat);
 extern bool cave_isquartz(struct cave *c, int y, int x);
 extern bool cave_ismineral(struct cave *c, int y, int x);
 extern bool cave_hassecretvein(struct cave *c, int y, int x);
@@ -114,6 +302,8 @@ extern bool cave_isempty(struct cave *c, int y, int x);
 extern bool cave_canputitem(struct cave *c, int y, int x);
 extern bool cave_isdiggable(struct cave *c, int y, int x);
 extern bool feat_ispassable(feature_type *f_ptr);
+extern bool feat_is_monster_walkable(feature_type *feature);
+extern bool cave_is_monster_walkable(struct cave *c, int y, int x);
 extern bool cave_ispassable(struct cave *c, int y, int x);
 extern bool cave_iswall(struct cave *c, int y, int x);
 extern bool cave_isstrongwall(struct cave *c, int y, int x);

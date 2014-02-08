@@ -115,7 +115,8 @@ void message_pain(struct monster *m_ptr, int dam)
 	char m_name[80];
 
 	/* Get the monster name */
-	monster_desc(m_name, sizeof(m_name), m_ptr, 0);
+	/* XXX Don't use monster_desc flags because add_monster_message does string processing on m_name */
+	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_DEFAULT);
 
 	/* Notice non-damage */
 	if (dam == 0)
@@ -327,9 +328,16 @@ bool add_monster_message(const char *mon_name, struct monster *m_ptr,
 	mon_msg[i].mon_flags = mon_flags;
 	mon_msg[i].msg_code = msg_code;
 	mon_msg[i].delay = delay;
+	mon_msg[i].delay_tag = MON_DELAY_TAG_DEFAULT;
 	/* Just this monster so far */
 	mon_msg[i].mon_count = 1;
-    
+
+	/* Force all death messages to go at the end of the group for logical presentation */
+	if (msg_code == MON_MSG_DIE || msg_code == MON_MSG_DESTROYED) {
+		mon_msg[i].delay = TRUE;
+		mon_msg[i].delay_tag = MON_DELAY_TAG_DEATH;
+	}
+
 	/* One more entry */
 	++size_mon_msg;
  
@@ -351,7 +359,7 @@ bool add_monster_message(const char *mon_name, struct monster *m_ptr,
  * This is to avoid things like "The snaga dies. The snaga runs in fear!"
  * So we only flush messages matching the delay parameter.
  */
-static void flush_monster_messages(bool delay)
+static void flush_monster_messages(bool delay, byte delay_tag)
 {
 	const monster_race *r_ptr;
 	int i, count;
@@ -361,7 +369,12 @@ static void flush_monster_messages(bool delay)
 
 	/* Show every message */
 	for (i = 0; i < size_mon_msg; i++) {
+		int type = MSG_GENERIC;
+
 		if (mon_msg[i].delay != delay) continue;
+
+		/* Skip if we are delaying and the tags don't match */
+		if (mon_msg[i].delay && mon_msg[i].delay_tag != delay_tag) continue;
    
 		/* Cache the monster count */
 		count = mon_msg[i].mon_count;
@@ -400,7 +413,12 @@ static void flush_monster_messages(bool delay)
 			/* We have more than one monster */
 			else if (count > 1) {
 				/* Get the plural of the race name */
-				plural_aux(race_name, sizeof(race_name));
+				if (r_ptr->plural != NULL) {
+					my_strcpy(race_name, r_ptr->plural, sizeof(race_name));
+				}
+				else {
+					plural_aux(race_name, sizeof(race_name));
+				}
 
 				/* Put the count and the race name together */
 				strnfmt(buf, sizeof(buf), "%d %s", count, race_name);
@@ -442,12 +460,36 @@ static void flush_monster_messages(bool delay)
 		/* Capitalize the message */
 		*buf = toupper((unsigned char)*buf);
 
-		/* Hack - play sound for fear message */
-		if (mon_msg[i].msg_code == MON_MSG_FLEE_IN_TERROR)
-			sound(MSG_FLEE);
+		switch (mon_msg[i].msg_code) {
+			case MON_MSG_FLEE_IN_TERROR:
+				type = MSG_FLEE;
+				break;
+
+			case MON_MSG_MORIA_DEATH:
+			case MON_MSG_DESTROYED:
+			case MON_MSG_DIE:
+			case MON_MSG_SHRIVEL_LIGHT:
+			case MON_MSG_DISENTEGRATES:
+			case MON_MSG_FREEZE_SHATTER:
+			case MON_MSG_DISSOLVE:
+			{
+				/* Assume normal death sound */
+				type = MSG_KILL;
+
+				/* Play a special sound if the monster was unique */
+				if (r_ptr != NULL && rf_has(r_ptr->flags, RF_UNIQUE)) {
+					if (r_ptr->base == lookup_monster_base("Morgoth"))
+						type = MSG_KILL_KING;
+					else
+						type = MSG_KILL_UNIQUE;
+				}
+				break;
+			}
+
+		}
 
 		/* Show the message */
-		msg(buf);
+		msgt(type, "%s", buf);
    }
 }
 
@@ -457,8 +499,9 @@ static void flush_monster_messages(bool delay)
 void flush_all_monster_messages(void)
 {
 	/* Flush regular messages, then delayed messages */
-	flush_monster_messages(FALSE);
-	flush_monster_messages(TRUE);
+	flush_monster_messages(FALSE, MON_DELAY_TAG_DEFAULT);
+	flush_monster_messages(TRUE, MON_DELAY_TAG_DEFAULT);
+	flush_monster_messages(TRUE, MON_DELAY_TAG_DEATH);
 
 	/* Delete all the stacked messages and history */
 	size_mon_msg = 0;

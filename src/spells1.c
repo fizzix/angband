@@ -18,17 +18,19 @@
 
 #include "angband.h"
 #include "cave.h"
+#include "dungeon.h"
 #include "generate.h"
-#include "object/tvalsval.h"
-#include "object/object.h"
+#include "grafmode.h"
 #include "monster/mon-make.h"
 #include "monster/mon-msg.h"
 #include "monster/mon-spell.h"
 #include "monster/mon-timed.h"
 #include "monster/mon-util.h"
+#include "object/object.h"
+#include "object/tvalsval.h"
+#include "spells.h"
 #include "squelch.h"
 #include "trap.h"
-#include "spells.h"
 
 /**
  * Details of the different projectable attack types in the game.
@@ -171,6 +173,9 @@ static monster_race *poly_race(monster_race *race)
 		if (!new_race || new_race == race) continue;
 		if (rf_has(new_race->flags, RF_UNIQUE)) continue;
 		if (new_race->level < minlvl || new_race->level > maxlvl) continue;
+
+		/* Avoid force-depth monsters, since it might cause a crash in project_m() */
+		if (rf_has(new_race->flags, RF_FORCE_DEPTH) && p_ptr->depth < new_race->level) continue;
 
 		return new_race;
 	}
@@ -415,7 +420,7 @@ void teleport_player_level(void)
 	/* Now actually do the level change */
 	if (up) {
 		msgt(MSG_TPLEVEL, "You rise up through the ceiling.");
-		dungeon_change_level(p_ptr->depth + 1);
+		dungeon_change_level(p_ptr->depth - 1);
 	} else if (down) {
 		msgt(MSG_TPLEVEL, "You sink through the floor.");
 
@@ -1297,7 +1302,7 @@ static bool project_f(int who, int r, int y, int x, int dam, int typ, bool obvio
 		/* Make traps */
 		case GF_MAKE_TRAP:
 		{
-			/* Require an "empty" floor grid */
+			/* Require an "empty", non-warded floor grid */
 			if (!cave_isempty(cave, y, x)) break;
 
 			/* Create a trap */
@@ -1408,7 +1413,6 @@ static bool project_o(int who, int r, int y, int x, int dam, int typ,
 
 		bool is_art = FALSE;
 		bool ignore = FALSE;
-		bool plural = FALSE;
 		bool do_kill = FALSE;
 
 		const char *note_kill = NULL;
@@ -1422,9 +1426,6 @@ static bool project_o(int who, int r, int y, int x, int dam, int typ,
 		/* Extract the flags */
 		object_flags(o_ptr, f);
 
-		/* Get the "plural"-ness */
-		if (o_ptr->number > 1) plural = TRUE;
-
 		/* Check for artifact */
 		if (o_ptr->artifact) is_art = TRUE;
 
@@ -1437,7 +1438,7 @@ static bool project_o(int who, int r, int y, int x, int dam, int typ,
 				if (of_has(f, OF_HATES_ACID))
 				{
 					do_kill = TRUE;
-					note_kill = (plural ? " melt!" : " melts!");
+					note_kill = VERB_AGREEMENT(o_ptr->number, "melts", "melt");
 					if (of_has(f, OF_IGNORE_ACID)) ignore = TRUE;
 				}
 				break;
@@ -1449,7 +1450,7 @@ static bool project_o(int who, int r, int y, int x, int dam, int typ,
 				if (of_has(f, OF_HATES_ELEC))
 				{
 					do_kill = TRUE;
-					note_kill = (plural ? " are destroyed!" : " is destroyed!");
+					note_kill = VERB_AGREEMENT(o_ptr->number, "is destroyed", "are destroyed");
 					if (of_has(f, OF_IGNORE_ELEC)) ignore = TRUE;
 				}
 				break;
@@ -1461,7 +1462,7 @@ static bool project_o(int who, int r, int y, int x, int dam, int typ,
 				if (of_has(f, OF_HATES_FIRE))
 				{
 					do_kill = TRUE;
-					note_kill = (plural ? " burn up!" : " burns up!");
+					note_kill = VERB_AGREEMENT(o_ptr->number, "burns up", "burn up");
 					if (of_has(f, OF_IGNORE_FIRE)) ignore = TRUE;
 				}
 				break;
@@ -1472,7 +1473,7 @@ static bool project_o(int who, int r, int y, int x, int dam, int typ,
 			{
 				if (of_has(f, OF_HATES_COLD))
 				{
-					note_kill = (plural ? " shatter!" : " shatters!");
+					note_kill = VERB_AGREEMENT(o_ptr->number, "shatters", "shatter");
 					do_kill = TRUE;
 					if (of_has(f, OF_IGNORE_COLD)) ignore = TRUE;
 				}
@@ -1485,14 +1486,14 @@ static bool project_o(int who, int r, int y, int x, int dam, int typ,
 				if (of_has(f, OF_HATES_FIRE))
 				{
 					do_kill = TRUE;
-					note_kill = (plural ? " burn up!" : " burns up!");
+					note_kill = VERB_AGREEMENT(o_ptr->number, "burns up", "burn up");
 					if (of_has(f, OF_IGNORE_FIRE)) ignore = TRUE;
 				}
 				if (of_has(f, OF_HATES_ELEC))
 				{
 					ignore = FALSE;
 					do_kill = TRUE;
-					note_kill = (plural ? " are destroyed!" : " is destroyed!");
+					note_kill = VERB_AGREEMENT(o_ptr->number, "is destroyed", "are destroyed");
 					if (of_has(f, OF_IGNORE_ELEC)) ignore = TRUE;
 				}
 				break;
@@ -1504,14 +1505,14 @@ static bool project_o(int who, int r, int y, int x, int dam, int typ,
 				if (of_has(f, OF_HATES_FIRE))
 				{
 					do_kill = TRUE;
-					note_kill = (plural ? " burn up!" : " burns up!");
+					note_kill = VERB_AGREEMENT(o_ptr->number, "burns up", "burn up");
 					if (of_has(f, OF_IGNORE_FIRE)) ignore = TRUE;
 				}
 				if (of_has(f, OF_HATES_COLD))
 				{
 					ignore = FALSE;
 					do_kill = TRUE;
-					note_kill = (plural ? " shatter!" : " shatters!");
+					note_kill = VERB_AGREEMENT(o_ptr->number, "shatters", "shatter");
 					if (of_has(f, OF_IGNORE_COLD)) ignore = TRUE;
 				}
 				break;
@@ -1525,7 +1526,7 @@ static bool project_o(int who, int r, int y, int x, int dam, int typ,
 			{
 				if (of_has(f, OF_HATES_COLD))
 				{
-					note_kill = (plural ? " shatter!" : " shatters!");
+					note_kill = VERB_AGREEMENT(o_ptr->number, "shatters", "shatter");
 					do_kill = TRUE;
 				}
 				break;
@@ -1535,7 +1536,7 @@ static bool project_o(int who, int r, int y, int x, int dam, int typ,
 			case GF_MANA:
 			{
 				do_kill = TRUE;
-				note_kill = (plural ? " are destroyed!" : " is destroyed!");
+				note_kill = VERB_AGREEMENT(o_ptr->number, "is destroyed", "are destroyed");
 				break;
 			}
 
@@ -1545,7 +1546,7 @@ static bool project_o(int who, int r, int y, int x, int dam, int typ,
 				if (cursed_p(o_ptr->flags))
 				{
 					do_kill = TRUE;
-					note_kill = (plural ? " are destroyed!" : " is destroyed!");
+					note_kill = VERB_AGREEMENT(o_ptr->number, "is destroyed", "are destroyed");
 				}
 				break;
 			}
@@ -1591,10 +1592,12 @@ static bool project_o(int who, int r, int y, int x, int dam, int typ,
 			{
 				/* Observe the resist */
 				if (o_ptr->marked && !squelch_item_ok(o_ptr))
-				{
-					msg("The %s %s unaffected!",
-					           o_name, (plural ? "are" : "is"));
-				}
+					msg("The %s %s unaffected!", o_name, VERB_AGREEMENT(o_ptr->number, "is", "are"));
+			}
+
+			/* Reveal mimics */
+			else if (o_ptr->mimicking_m_idx) {
+				become_aware(cave_monster(cave, o_ptr->mimicking_m_idx));
 			}
 
 			/* Kill it */
@@ -1602,9 +1605,7 @@ static bool project_o(int who, int r, int y, int x, int dam, int typ,
 			{
 				/* Describe if needed */
 				if (o_ptr->marked && note_kill && !squelch_item_ok(o_ptr))
-				{
-					msgt(MSG_DESTROY, "The %s%s", o_name, note_kill);
-				}
+					msgt(MSG_DESTROY, "The %s %s!", o_name, note_kill);
 
 				/* Delete the object */
 				delete_object_idx(this_o_idx);
@@ -1752,10 +1753,10 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 
 
 	/* Get the monster name (BEFORE polymorphing) */
-	monster_desc(m_name, sizeof(m_name), m_ptr, 0);
+	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_DEFAULT);
 
 	/* Get the monster possessive ("his"/"her"/"its") */
-	monster_desc(m_poss, sizeof(m_poss), m_ptr, MDESC_PRO2 | MDESC_POSS);
+	monster_desc(m_poss, sizeof(m_poss), m_ptr, MDESC_PRO_VIS | MDESC_POSS);
 
 
 	/* Some monsters get "destroyed" */
@@ -1936,8 +1937,7 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 				m_note = MON_MSG_IMMUNE;
 				dam = 0;
 			}
-			else if (rf_has(m_ptr->race->flags, RF_RES_NETH) ||
-			         rsf_has(m_ptr->race->spell_flags, RSF_BR_NETH))
+			else if (rf_has(m_ptr->race->flags, RF_RES_NETH))
 			{
 				m_note = MON_MSG_RESIST;
 				dam *= 3; dam /= (randint1(6)+6);
@@ -2590,7 +2590,8 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 	/* Handle polymorph */
 	else if (do_poly) {
 		/* Default -- assume no polymorph */
-		m_note = MON_MSG_UNAFFECTED;
+		if (typ == GF_OLD_POLY)
+			m_note = MON_MSG_UNAFFECTED;
 
 		/* Uniques cannot be polymorphed */
 		if (!rf_has(m_ptr->race->flags, RF_UNIQUE)) {
@@ -2673,103 +2674,108 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 		obvious = mon_inc_timed(m_ptr, MON_TMD_FEAR, do_fear,
 			flag | MON_TMD_FLG_NOTIFY, id);
 
-	/* If another monster did the damage, hurt the monster by hand */
-	if (who > 0)
-	{
-		/* Redraw (later) if needed */
-		if (p_ptr->health_who == m_ptr) p_ptr->redraw |= (PR_HEALTH);
-
-		/* Wake the monster up */
-		mon_clear_timed(m_ptr, MON_TMD_SLEEP, MON_TMD_FLG_NOMESSAGE, FALSE);
-
-		/* Hurt the monster */
-		m_ptr->hp -= dam;
-
-		/* Dead monster */
-		if (m_ptr->hp < 0)
+	/* Hack: Avoid a crash in case polymorph goes bad; this will certainly have weird side effects */
+	if (m_ptr != NULL) {
+		/* If another monster did the damage, hurt the monster by hand */
+		if (who > 0)
 		{
-			/* Give detailed messages if destroyed */
-			if (!seen) note_dies = MON_MSG_MORIA_DEATH;
+			/* Redraw (later) if needed */
+			if (p_ptr->health_who == m_ptr) p_ptr->redraw |= (PR_HEALTH);
 
-			/* dump the note*/
-			add_monster_message(m_name, m_ptr, note_dies, FALSE);
+			/* Wake the monster up */
+			mon_clear_timed(m_ptr, MON_TMD_SLEEP, MON_TMD_FLG_NOMESSAGE, FALSE);
 
-			/* Generate treasure, etc */
-			monster_death(m_ptr, FALSE);
+			/* Hurt the monster */
+			m_ptr->hp -= dam;
 
-			/* Delete the monster */
-			delete_monster_idx(m_idx);
-
-			mon_died = TRUE;
-		}
-
-		/* Damaged monster */
-		else if (!is_mimicking(m_ptr))
-		{
-			/* Give detailed messages if visible or destroyed */
-			if ((m_note != MON_MSG_NONE) && seen)
+			/* Dead monster */
+			if (m_ptr->hp < 0)
 			{
-				add_monster_message(m_name, m_ptr, m_note, FALSE);
+				/* Give detailed messages if destroyed */
+				if (!seen) note_dies = MON_MSG_MORIA_DEATH;
+
+				/* dump the note*/
+				add_monster_message(m_name, m_ptr, note_dies, FALSE);
+
+				/* Generate treasure, etc */
+				monster_death(m_ptr, FALSE);
+
+				/* Delete the monster */
+				delete_monster_idx(m_idx);
+
+				mon_died = TRUE;
 			}
 
-			/* Hack -- Pain message */
-			else if (dam > 0) message_pain(m_ptr, dam);
-		}
-	}
+			/* Damaged monster */
+			else if (!is_mimicking(m_ptr))
+			{
+				/* Give detailed messages if visible or destroyed */
+				if ((m_note != MON_MSG_NONE) && seen)
+				{
+					add_monster_message(m_name, m_ptr, m_note, FALSE);
+				}
 
-	/* If the player did it, give them experience, check fear */
-	else
-	{
-		bool fear = FALSE;
-
-		/* The monster is going to be killed */
-		if (dam > m_ptr->hp)
-		{
-			/* Adjust message for unseen monsters */
-			if (!seen) note_dies = MON_MSG_MORIA_DEATH;
-
-			/* Save the death notification for later */
-			add_monster_message(m_name, m_ptr, note_dies, FALSE);
+				/* Hack -- Pain message */
+				else if (dam > 0) message_pain(m_ptr, dam);
+			}
 		}
 
-		if (do_sleep)
-			obvious = mon_inc_timed(m_ptr, MON_TMD_SLEEP, 500 + p_ptr->lev * 10,
-				flag | MON_TMD_FLG_NOTIFY, id);
-		else if (mon_take_hit(m_ptr, dam, &fear, ""))
-			mon_died = TRUE;
+		/* If the player did it, give them experience, check fear */
 		else
 		{
-			/* Give detailed messages if visible or destroyed */
-			if ((m_note != MON_MSG_NONE) && seen)
+			bool fear = FALSE;
+
+			/* The monster is going to be killed */
+			if (dam > m_ptr->hp)
 			{
-				add_monster_message(m_name, m_ptr, m_note, FALSE);
+				/* Adjust message for unseen monsters */
+				if (!seen) note_dies = MON_MSG_MORIA_DEATH;
+
+				/* Save the death notification for later */
+				add_monster_message(m_name, m_ptr, note_dies, FALSE);
 			}
 
-			/* Hack -- Pain message */
-			else if (dam > 0)
-				message_pain(m_ptr, dam);
+			if (do_sleep)
+				obvious = mon_inc_timed(m_ptr, MON_TMD_SLEEP, 500 + p_ptr->lev * 10,
+										flag | MON_TMD_FLG_NOTIFY, id);
+			else if (mon_take_hit(m_ptr, dam, &fear, ""))
+				mon_died = TRUE;
+			else
+			{
+				/* Give detailed messages if visible or destroyed */
+				if ((m_note != MON_MSG_NONE) && seen)
+				{
+					add_monster_message(m_name, m_ptr, m_note, FALSE);
+				}
 
-			if (fear && m_ptr->ml)
-				add_monster_message(m_name, m_ptr, MON_MSG_FLEE_IN_TERROR, TRUE);
+				/* Hack -- Pain message */
+				else if (dam > 0)
+					message_pain(m_ptr, dam);
+
+				if (fear && m_ptr->ml)
+					add_monster_message(m_name, m_ptr, MON_MSG_FLEE_IN_TERROR, TRUE);
+			}
 		}
+
+		/* Verify this code XXX XXX XXX */
+
+		/* Update the monster */
+		if (!mon_died) update_mon(m_ptr, FALSE);
+
+		/* Redraw the monster grid */
+		cave_light_spot(cave, y, x);
+
+
+		/* Update monster recall window */
+		if (p_ptr->monster_race == m_ptr->race)
+		{
+			/* Window stuff */
+			p_ptr->redraw |= (PR_MONSTER);
+		}
+	} /* m_ptr != NULL */
+	else {
+		bell("Polymorph crash avoided! Please file a bug report (with a screen shot if possible).");
 	}
-
-	/* Verify this code XXX XXX XXX */
-
-	/* Update the monster */
-	if (!mon_died) update_mon(m_ptr, FALSE);
-
-	/* Redraw the monster grid */
-	cave_light_spot(cave, y, x);
-
-
-	/* Update monster recall window */
-	if (p_ptr->monster_race == m_ptr->race)
-	{
-		/* Window stuff */
-		p_ptr->redraw |= (PR_MONSTER);
-	}
-
 
 	/* Track it */
 	project_m_n++;
@@ -2809,9 +2815,6 @@ static bool project_p(int who, int r, int y, int x, int dam, int typ,
 	/* Source monster */
 	monster_type *m_ptr;
 
-	/* Monster name (for attacks) */
-	char m_name[80];
-
 	/* Monster name (for damage) */
 	char killer[80];
 
@@ -2833,11 +2836,8 @@ static bool project_p(int who, int r, int y, int x, int dam, int typ,
 	/* Reduce damage by distance */
 	dam = (dam + r) / (r + 1);
 
-	/* Get the monster name */
-	monster_desc(m_name, sizeof(m_name), m_ptr, 0);
-
 	/* Get the monster's real name */
-	monster_desc(killer, sizeof(killer), m_ptr, MDESC_SHOW | MDESC_IND2);
+	monster_desc(killer, sizeof(killer), m_ptr, MDESC_DIED_FROM);
 
 	/* Let player know what is going on */
 	if (!seen)

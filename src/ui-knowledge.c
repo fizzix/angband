@@ -29,6 +29,7 @@
 #include "store.h"
 #include "ui.h"
 #include "ui-menu.h"
+#include "ui-options.h"
 #include "grafmode.h"
 
 /* Flag value for missing array entry */
@@ -1252,6 +1253,7 @@ static void mon_lore(int oid)
 	int r_idx;
 	monster_race *r_ptr;
 	const monster_lore *l_ptr;
+	textblock *tb;
 
 	r_idx = default_join[oid].oid;
 
@@ -1263,22 +1265,10 @@ static void mon_lore(int oid)
 	monster_race_track(r_ptr);
 	handle_stuff(p_ptr);
 
-	/* Save the screen */
-	screen_save();
-
-	/* Describe */
-	text_out_hook = text_out_to_screen;
-
-	/* Recall monster */
-	roff_top(r_ptr);
-	Term_gotoxy(0, 2);
-	describe_monster(r_ptr, l_ptr, FALSE);
-
-	text_out_c(TERM_L_BLUE, "\n[Press any key to continue]\n");
-	(void)anykey();
-
-	/* Load the screen */
-	screen_load();
+	tb = textblock_new();
+	lore_description(tb, r_ptr, l_ptr, FALSE);
+	textui_textblock_show(tb, SCREEN_REGION, NULL);
+	textblock_free(tb);
 }
 
 static void mon_summary(int gid, const int *object_list, int n, int top, int row, int col)
@@ -1999,13 +1989,15 @@ static void display_feature(int col, int row, bool cursor, int oid )
 
 	if (tile_height == 1) {
 		/* Display symbols */
-		col = 66;
+		col = 65;
 		col += big_pad(col, row, f_ptr->x_attr[FEAT_LIGHTING_DARK],
 				f_ptr->x_char[FEAT_LIGHTING_DARK]);
 		col += big_pad(col, row, f_ptr->x_attr[FEAT_LIGHTING_LIT],
 				f_ptr->x_char[FEAT_LIGHTING_LIT]);
-		col += big_pad(col, row, f_ptr->x_attr[FEAT_LIGHTING_BRIGHT],
-				f_ptr->x_char[FEAT_LIGHTING_BRIGHT]);
+		col += big_pad(col, row, f_ptr->x_attr[FEAT_LIGHTING_TORCH],
+				f_ptr->x_char[FEAT_LIGHTING_TORCH]);
+		col += big_pad(col, row, f_ptr->x_attr[FEAT_LIGHTING_LOS],
+				f_ptr->x_char[FEAT_LIGHTING_LOS]);
 	}
 }
 
@@ -2024,7 +2016,7 @@ static int f_cmp_fkind(const void *a, const void *b)
 }
 
 static const char *fkind_name(int gid) { return feature_group_text[gid]; }
-/* Disgusting hack to allow 3 in 1 editting of terrain visuals */
+/* Disgusting hack to allow 4 in 1 editing of terrain visuals */
 static enum grid_light_level f_uik_lighting = FEAT_LIGHTING_LIT;
 /* XXX needs *better* retooling for multi-light terrain */
 static byte *f_xattr(int oid) { return &f_info[oid].x_attr[f_uik_lighting]; }
@@ -2044,13 +2036,15 @@ static void f_xtra_act(struct keypress ch, int oid)
 	/* XXX must be a better way to cycle this */
 	if (ch.code == 'l') {
 		switch (f_uik_lighting) {
-				case FEAT_LIGHTING_LIT:  f_uik_lighting = FEAT_LIGHTING_BRIGHT; break;
-				case FEAT_LIGHTING_BRIGHT:  f_uik_lighting = FEAT_LIGHTING_DARK; break;
+				case FEAT_LIGHTING_LIT:  f_uik_lighting = FEAT_LIGHTING_TORCH; break;
+                case FEAT_LIGHTING_TORCH: f_uik_lighting = FEAT_LIGHTING_LOS; break;
+				case FEAT_LIGHTING_LOS:  f_uik_lighting = FEAT_LIGHTING_DARK; break;
 				default:	f_uik_lighting = FEAT_LIGHTING_LIT; break;
 		}		
 	} else if (ch.code == 'L') {
 		switch (f_uik_lighting) {
-				case FEAT_LIGHTING_DARK:  f_uik_lighting = FEAT_LIGHTING_BRIGHT; break;
+				case FEAT_LIGHTING_DARK:  f_uik_lighting = FEAT_LIGHTING_LOS; break;
+                case FEAT_LIGHTING_LOS: f_uik_lighting = FEAT_LIGHTING_TORCH; break;
 				case FEAT_LIGHTING_LIT:  f_uik_lighting = FEAT_LIGHTING_DARK; break;
 				default:	f_uik_lighting = FEAT_LIGHTING_LIT; break;
 		}

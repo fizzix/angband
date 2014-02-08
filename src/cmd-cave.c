@@ -20,6 +20,7 @@
 #include "attack.h"
 #include "cave.h"
 #include "cmds.h"
+#include "dungeon.h"
 #include "files.h"
 #include "game-cmd.h"
 #include "game-event.h"
@@ -28,6 +29,7 @@
 #include "monster/mon-util.h"
 #include "monster/monster.h"
 #include "object/tvalsval.h"
+#include "pathfind.h"
 #include "spells.h"
 #include "squelch.h"
 #include "trap.h"
@@ -110,6 +112,121 @@ void do_cmd_go_down(cmd_code code, cmd_arg args[])
 
 	/* Change level */
 	dungeon_change_level(descend_to);
+}
+
+
+
+
+/*
+ * Search for hidden things.  Returns true if a search was attempted, returns
+ * false when the player has a 0% chance of finding anything.  Prints messages
+ * for negative confirmation when verbose mode is requested.
+ */
+bool search(bool verbose)
+{
+	int py = p_ptr->py;
+	int px = p_ptr->px;
+
+	int y, x, chance;
+
+	bool found = FALSE;
+
+	object_type *o_ptr;
+
+
+	/* Start with base search ability */
+	chance = p_ptr->state.skills[SKILL_SEARCH];
+
+	/* Penalize various conditions */
+	if (p_ptr->timed[TMD_BLIND] || no_light()) chance = chance / 10;
+	if (p_ptr->timed[TMD_CONFUSED] || p_ptr->timed[TMD_IMAGE]) chance = chance / 10;
+
+	/* Prevent fruitless searches */
+	if (chance <= 0)
+	{
+		if (verbose)
+		{
+			msg("You can't make out your surroundings well enough to search.");
+
+			/* Cancel repeat */
+			disturb(p_ptr, 0, 0);
+		}
+
+		return FALSE;
+	}
+
+	/* Search the nearby grids, which are always in bounds */
+	for (y = (py - 1); y <= (py + 1); y++)
+	{
+		for (x = (px - 1); x <= (px + 1); x++)
+		{
+			/* Sometimes, notice things */
+			if (randint0(100) < chance)
+			{
+				/* Invisible trap */
+				if (cave_issecrettrap(cave, y, x))
+				{
+					found = TRUE;
+
+					/* Pick a trap */
+					pick_trap(y, x);
+
+					/* Message */
+					msg("You have found a trap.");
+
+					/* Disturb */
+					disturb(p_ptr, 0, 0);
+				}
+
+				/* Secret door */
+				if (cave_issecretdoor(cave, y, x))
+				{
+					found = TRUE;
+
+					/* Message */
+					msg("You have found a secret door.");
+
+					/* Pick a door */
+					place_closed_door(cave, y, x);
+
+					/* Disturb */
+					disturb(p_ptr, 0, 0);
+				}
+
+				/* Scan all objects in the grid */
+				for (o_ptr = get_first_object(y, x); o_ptr; o_ptr = get_next_object(o_ptr))
+				{
+					/* Skip if not a trapped chest */
+					if (!is_trapped_chest(o_ptr)) continue;
+
+					/* Identify once */
+					if (!object_is_known(o_ptr))
+					{
+						found = TRUE;
+
+						/* Message */
+						msg("You have discovered a trap on the chest!");
+
+						/* Know the trap */
+						object_notice_everything(o_ptr);
+
+						/* Notice it */
+						disturb(p_ptr, 0, 0);
+					}
+				}
+			}
+		}
+	}
+
+	if (verbose && !found)
+	{
+		if (chance >= 100)
+			msg("There are no secrets here.");
+		else
+			msg("You found nothing.");
+	}
+
+	return TRUE;
 }
 
 
@@ -1139,7 +1256,7 @@ static bool do_cmd_walk_test(int y, int x)
 		{
 			/* Extract monster name (or "it") */
 			char m_name[80];
-			monster_desc(m_name, sizeof(m_name), m_ptr, 0);
+			monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_DEFAULT);
 
 			/* Message */
 			msgt(MSG_AFRAID, "You are too afraid to attack %s!", m_name);
@@ -1326,30 +1443,6 @@ void do_cmd_hold(cmd_code code, cmd_arg args[])
 }
 
 
-
-/*
- * Pick up objects on the floor beneath you.  -LM-
- */
-void do_cmd_pickup(cmd_code code, cmd_arg args[])
-{
-	int energy_cost;
-
-	/* Pick up floor objects, forcing a menu for multiple objects. */
-	energy_cost = py_pickup(1) * 10;
-
-	/* Charge this amount of energy. */
-	p_ptr->energy_use = energy_cost;
-}
-
-/*
- * Pick up objects on the floor beneath you.  -LM-
- */
-void do_cmd_autopickup(cmd_code code, cmd_arg args[])
-{
-	p_ptr->energy_use = do_autopickup() * 10;
-}
-
-
 /*
  * Rest (restores hit points and mana and such)
  */
@@ -1359,20 +1452,11 @@ void do_cmd_rest(cmd_code code, cmd_arg args[])
 	 * A little sanity checking on the input - only the specified negative 
 	 * values are valid. 
 	 */
-	if ((args[0].choice < 0) &&
-		((args[0].choice != REST_COMPLETE) &&
-		 (args[0].choice != REST_ALL_POINTS) &&
-		 (args[0].choice != REST_SOME_POINTS))) 
-	{
-		return;
-	}
+    if (args[0].choice < 0 && !player_resting_is_special(args[0].choice))
+        return;
 
-	/* Save the rest code */
-	p_ptr->resting = args[0].choice;
-	
-	/* Truncate overlarge values */
-	if (p_ptr->resting > 9999) p_ptr->resting = 9999;
-	
+	player_resting_set_count(p_ptr, args[0].choice);
+
 	/* Take a turn XXX XXX XXX (?) */
 	p_ptr->energy_use = 100;
 
@@ -1437,57 +1521,102 @@ void textui_cmd_rest(void)
 
 
 /*
- * Hack -- commit suicide
+ * Array of feeling strings for object feelings.
+ * Keep strings at 36 or less characters to keep the
+ * combined feeling on one row.
  */
-void do_cmd_suicide(cmd_code code, cmd_arg args[])
+static const char *obj_feeling_text[] =
 {
-	/* Commit suicide */
-	p_ptr->is_dead = TRUE;
+	"Looks like any other level.",
+	"you sense an item of wondrous power!",
+	"there are superb treasures here.",
+	"there are excellent treasures here.",
+	"there are very good treasures here.",
+	"there are good treasures here.",
+	"there may be something worthwhile here.",
+	"there may not be much interesting here.",
+	"there aren't many treasures here.",
+	"there are only scraps of junk here.",
+	"there are naught but cobwebs here."
+};
 
-	/* Stop playing */
-	p_ptr->playing = FALSE;
-
-	/* Leaving */
-	p_ptr->leaving = TRUE;
-
-	/* Cause of death */
-	my_strcpy(p_ptr->died_from, "Quitting", sizeof(p_ptr->died_from));
-}
-
-
-void textui_cmd_suicide(void)
+/*
+ * Array of feeling strings for monster feelings.
+ * Keep strings at 36 or less characters to keep the
+ * combined feeling on one row.
+ */
+static const char *mon_feeling_text[] =
 {
-	/* Flush input */
-	flush();
+	/* first string is just a place holder to 
+	 * maintain symmetry with obj_feeling.
+	 */
+	"You are still uncertain about this place",
+	"Omens of death haunt this place",
+	"This place seems murderous",
+	"This place seems terribly dangerous",
+	"You feel anxious about this place",
+	"You feel nervous about this place",
+	"This place does not seem too risky",
+	"This place seems reasonably safe",
+	"This seems a tame, sheltered place",
+	"This seems a quiet, peaceful place"
+};
 
-	/* Verify Retirement */
-	if (p_ptr->total_winner)
-	{
-		/* Verify */
-		if (!get_check("Do you want to retire? ")) return;
+/*
+ * Display the feeling.  Players always get a monster feeling.
+ * Object feelings are delayed until the player has explored some
+ * of the level.
+ */
+
+void display_feeling(bool obj_only)
+{
+	u16b obj_feeling = cave->feeling / 10;
+	u16b mon_feeling = cave->feeling - (10 * obj_feeling);
+	const char *join;
+
+	/* Don't show feelings for cold-hearted characters */
+	if (OPT(birth_no_feelings)) return;
+
+	/* No useful feeling in town */
+	if (!p_ptr->depth) {
+		msg("Looks like a typical town.");
+		return;
 	}
+	
+	/* Display only the object feeling when it's first discovered. */
+	if (obj_only){
+		msg("You feel that %s", obj_feeling_text[obj_feeling]);
+		return;
+	}
+	
+	/* Players automatically get a monster feeling. */
+	if (cave->feeling_squares < FEELING1){
+		msg("%s.", mon_feeling_text[mon_feeling]);
+		return;
+	}
+	
+	/* Verify the feelings */
+	if (obj_feeling >= N_ELEMENTS(obj_feeling_text))
+		obj_feeling = N_ELEMENTS(obj_feeling_text) - 1;
 
-	/* Verify Suicide */
+	if (mon_feeling >= N_ELEMENTS(mon_feeling_text))
+		mon_feeling = N_ELEMENTS(mon_feeling_text) - 1;
+
+	/* Decide the conjunction */
+	if ((mon_feeling <= 5 && obj_feeling > 6) ||
+			(mon_feeling > 5 && obj_feeling <= 6))
+		join = ", yet";
 	else
-	{
-		struct keypress ch;
+		join = ", and";
 
-		/* Verify */
-		if (!get_check("Do you really want to commit suicide? ")) return;
-
-		/* Special Verification for suicide */
-		prt("Please verify SUICIDE by typing the '@' sign: ", 0, 0);
-		flush();
-		ch = inkey();
-		prt("", 0, 0);
-		if (ch.code != '@') return;
-	}
-
-	cmd_insert(CMD_SUICIDE);
+	/* Display the feeling */
+	msg("%s%s %s", mon_feeling_text[mon_feeling], join,
+		obj_feeling_text[obj_feeling]);
 }
 
-void do_cmd_save_game(cmd_code code, cmd_arg args[])
+
+void do_cmd_feeling(void)
 {
-	save_game();
+	display_feeling(FALSE);
 }
 

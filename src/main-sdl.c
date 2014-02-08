@@ -19,12 +19,13 @@
 #include "angband.h"
 #include "buildid.h"
 #include "cmds.h"
+#include "dungeon.h"
 #include "files.h"
 
 /*
  * Comments and suggestions are welcome. The UI probably needs some
  * adjustment, and I need comments from you.
- * perhaps also something like "Angband 3.0.8 by Andrew Sidwell and others;
+ * perhaps also something like "Angband 3.0.8 by Andi Sidwell and others;
  * SDL port by Iain McFall an others, please see the accompanying documentation
  * for credits" or something
  */
@@ -495,7 +496,7 @@ static errr sdl_FontCreate(sdl_Font *font, const char *fontname, SDL_Surface *su
 	if (TTF_SizeText(ttf_font, "M", &font->width, &font->height)) return (-1);
 	
 	/* Fill in some of the font struct */
-	my_strcpy(font->name, fontname, 30);
+	if (font->name != fontname) my_strcpy(font->name, fontname, 30);
 	font->pitch = surface->pitch;
 	font->bpp = surface->format->BytesPerPixel;
 	font->sdl_font = ttf_font;

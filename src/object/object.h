@@ -8,10 +8,37 @@
 #include "z-bitflag.h"
 #include "game-cmd.h"
 #include "cave.h"
+#include "object/obj-flag.h"
 
 struct player;
 
-/*** Constants ***/
+
+/*** Game constants ***/
+
+/*
+ * Refueling constants
+ */
+#define FUEL_TORCH                5000  /* Maximum amount of fuel in a torch */
+#define FUEL_LAMP                15000  /* Maximum amount of fuel in a lantern */
+#define DEFAULT_TORCH       FUEL_TORCH  /* Default amount of fuel in a torch */
+#define DEFAULT_LAMP   (FUEL_LAMP / 2)  /* Default amount of fuel in a lantern */
+
+/* A "stack" of items is limited to 40 items (hard-coded). */
+#define MAX_STACK_SIZE 41
+
+/* An item's pval (for charges, amount of gold, etc) is limited to s16b */
+#define MAX_PVAL  32767
+
+/*
+ * Maximum number of objects allowed in a single dungeon grid.
+ *
+ * The main-screen has a minimum size of 24 rows, so we can always
+ * display 23 objects + 1 header line.
+ */
+#define MAX_FLOOR_STACK			23
+
+
+/*** API constants ***/
 
 /* Object origin kinds */
 
@@ -74,6 +101,7 @@ enum {
 #define IDENT_FIRED     0x0800  /* Has been used as a missile */
 #define IDENT_NOTART    0x1000  /* Item is known not to be an artifact */
 #define IDENT_FAKE      0x2000  /* Item is a fake, for displaying knowledge */
+#define IDENT_SENSED_THIS_TURN 0x4000 /* Item has had a chance to be sensed on this turn (see sense_inventory()) */
 
 /* Whether to learn egos and flavors with less than complete information */
 #define EASY_LEARN 1
@@ -98,31 +126,30 @@ enum {
 	ODESC_SPOIL  = 0x20,    /*!< Display regardless of player knowledge */
 	ODESC_PREFIX = 0x40,   /* */
 
-	ODESC_CAPITAL = 0x80	/*!< Capitalise object name */
+	ODESC_CAPITAL = 0x80,	/*!< Capitalise object name */
+	ODESC_TERSE = 0x100  	/*!< Make terse names */
 };
 
 
 /**
  * Modes for item lists in "show_inven()"  "show_equip()" and "show_floor()"
  */
-typedef enum
-{
+typedef enum {
 	OLIST_NONE   = 0x00,   /* No options */
    	OLIST_WINDOW = 0x01,   /* Display list in a sub-term (left-align) */
    	OLIST_QUIVER = 0x02,   /* Display quiver lines */
    	OLIST_GOLD   = 0x04,   /* Include gold in the list */
 	OLIST_WEIGHT = 0x08,   /* Show item weight */
 	OLIST_PRICE  = 0x10,   /* Show item price */
-	OLIST_FAIL   = 0x20    /* Show device failure */
-
+	OLIST_FAIL   = 0x20,    /* Show device failure */
+	OLIST_SEMPTY = 0x40
 } olist_detail_t;
 
 
 /**
  * Modes for object_info()
  */
-typedef enum
-{
+typedef enum {
 	OINFO_NONE   = 0x00, /* No options */
 	OINFO_TERSE  = 0x01, /* Keep descriptions brief, e.g. for dumps */
 	OINFO_SUBJ   = 0x02, /* Describe object from the character's POV */
@@ -172,6 +199,20 @@ enum chest_query {
 	CHEST_OPENABLE,
 	CHEST_TRAPPED
 };
+
+/*
+ * Bit flags for get_item() function
+ */
+#define USE_EQUIP     0x0001	/* Allow equip items */
+#define USE_INVEN     0x0002	/* Allow inven items */
+#define USE_FLOOR     0x0004	/* Allow floor items */
+#define IS_HARMLESS   0x0008	/* Ignore generic warning inscriptions */
+#define SHOW_PRICES   0x0010	/* Show item prices in item lists */
+#define SHOW_FAIL     0x0020 	/* Show device failure in item lists */
+#define SHOW_QUIVER   0x0040	/* Show quiver summary when looking at inventory */
+#define SHOW_EMPTY    0x0080	/* Show empty slots in equipment display */
+#define QUIVER_TAGS   0x0100	/* 0-9 are quiver slots when selecting */
+
 
 /*
  * Some constants used in randart generation and power calculation
@@ -257,6 +298,24 @@ enum {
 
 
 /*** Structures ***/
+
+/*
+ * And here's the structure for the "fixed" spell information
+ */
+typedef struct spell {
+	struct spell *next;
+	unsigned int sidx;
+	char *name;
+	char *text;
+
+	byte realm;			/* 0 = mage; 1 = priest */
+	byte tval;			/* Item type for book this spell is in */
+	byte sval;			/* Item sub-type for book (= book number) */
+	byte snum;			/* Position of spell within book */
+
+	byte spell_index;	/* Index into player_magic array */
+} spell_type;
+
 
 /**
  * Information about object types, like rods, wands, etc.
@@ -400,6 +459,12 @@ typedef struct artifact
 	random_value time;  /**< Recharge time (if appropriate) */
 } artifact_type;
 
+
+
+/*
+ * Number of tval/min-sval/max-sval slots per ego item
+ */
+#define EGO_TVALS_MAX 3
 
 /*
  * Information about "ego-items".
@@ -626,6 +691,7 @@ void show_equip(int mode);
 void show_floor(const int *floor_list, int floor_num, int mode);
 bool verify_item(const char *prompt, int item);
 bool get_item(int *cp, const char *pmt, const char *str, cmd_code cmd, int mode);
+bool get_item_allow(int item, unsigned char ch, cmd_code cmd, bool is_harmless);
 
 /* obj-util.c */
 struct object_kind *objkind_get(int tval, int sval);
@@ -723,13 +789,18 @@ bool obj_is_used_aimed(const object_type *o_ptr);
 bool obj_is_used_unaimed(const object_type *o_ptr);
 u16b object_effect(const object_type *o_ptr);
 object_type *object_from_item_idx(int item);
+int inventory_index_matching_object(const object_type *o_ptr);
 bool obj_needs_aim(object_type *o_ptr);
+bool obj_can_fail(const struct object *o);
 bool get_item_okay(int item);
 int scan_items(int *item_list, size_t item_list_max, int mode);
 bool item_is_available(int item, bool (*tester)(const object_type *), int mode);
 extern void display_itemlist(void);
 extern void display_object_idx_recall(s16b o_idx);
 extern void display_object_kind_recall(struct object_kind *kind);
+void display_object_recall_interactive(object_type *o_ptr);
+bool is_unknown(const object_type *o_ptr);
+int compare_items(const object_type *o1, const object_type *o2);
 
 bool pack_is_full(void);
 bool pack_is_overfull(void);

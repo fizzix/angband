@@ -154,6 +154,16 @@ static const struct {
 };
 
 /**
+ * Return the player's chance to hit with a particular weapon.
+ */
+int py_attack_hit_chance(const object_type *weapon)
+{
+	int bonus = p_ptr->state.to_h + weapon->to_h;
+	int chance = p_ptr->state.skills[SKILL_TO_HIT_MELEE] + bonus * BTH_PLUS_ADJ;
+	return chance;
+}
+
+/**
  * Attack the monster at the given location with a single blow.
  */
 static bool py_attack_real(int y, int x, bool *fear) {
@@ -168,8 +178,7 @@ static bool py_attack_real(int y, int x, bool *fear) {
 	object_type *o_ptr = &p_ptr->inventory[INVEN_WIELD];
 
 	/* Information about the attack */
-	int bonus = p_ptr->state.to_h + o_ptr->to_h;
-	int chance = p_ptr->state.skills[SKILL_TO_HIT_MELEE] + bonus * BTH_PLUS_ADJ;
+	int chance = py_attack_hit_chance(o_ptr);
 	bool do_quake = FALSE;
 	bool success = FALSE;
 
@@ -179,7 +188,7 @@ static bool py_attack_real(int y, int x, bool *fear) {
 	u32b msg_type = MSG_HIT;
 
 	/* Extract monster name (or "it") */
-	monster_desc(m_name, sizeof(m_name), m_ptr, 0);
+	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_OBJE | MDESC_IND_HID | MDESC_PRO_HID);
 
 	/* Auto-Recall if possible and visible */
 	if (m_ptr->ml) monster_race_track(m_ptr->race);
@@ -324,7 +333,8 @@ void py_attack(int y, int x) {
 	/* Hack - delay fear messages */
 	if (fear && m_ptr->ml) {
 		char m_name[80];
-		monster_desc(m_name, sizeof(m_name), m_ptr, 0);
+		/* XXX Don't set monster_desc flags, since add_monster_message does string processing on m_name */
+		monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_DEFAULT);
 		add_monster_message(m_name, m_ptr, MON_MSG_FLEE_IN_TERROR, TRUE);
 	}
 }
@@ -386,7 +396,7 @@ static void ranged_helper(int item, int dir, int range, int shots, ranged_attack
 		target_get(&tx, &ty);
 		taim = distance(y, x, ty, tx);
 		if (taim > range) {
-			sprintf (msg, "Target out of range by %d squares. Fire anyway? ",
+			strnfmt(msg, sizeof(msg), "Target out of range by %d squares. Fire anyway? ",
 				taim - range);
 			if (!get_check(msg)) return;
 		}
@@ -464,9 +474,6 @@ static void ranged_helper(int item, int dir, int range, int shots, ranged_attack
 		if (result.success) {
 			hit_target = TRUE;
 
-			/* Get "the monster" or "it" */
-			monster_desc(m_name, sizeof(m_name), m_ptr, 0);
-		
 			object_notice_attack_plusses(o_ptr);
 
 			/* Learn by use for other equipped items */
@@ -476,7 +483,7 @@ static void ranged_helper(int item, int dir, int range, int shots, ranged_attack
 			if (dmg <= 0) {
 				dmg = 0;
 				msg_type = MSG_MISS;
-				hit_verb = "fail to harm";
+				hit_verb = "fails to harm";
 			}
 		
 			if (!visible) {
@@ -492,6 +499,8 @@ static void ranged_helper(int item, int dir, int range, int shots, ranged_attack
 					if (OPT(show_damage))
 						dmg_text = format(" (%d)", dmg);
 
+					monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_OBJE);
+					
 					if (ranged_hit_types[i].text)
 						msgt(msg_type, "Your %s %s %s%s. %s", o_name, hit_verb,
 								m_name, dmg_text, ranged_hit_types[i].text);
@@ -508,8 +517,10 @@ static void ranged_helper(int item, int dir, int range, int shots, ranged_attack
 			/* Hit the monster, check for death */
 			if (!mon_take_hit(m_ptr, dmg, &fear, note_dies)) {
 				message_pain(m_ptr, dmg);
-				if (fear && m_ptr->ml)
+				if (fear && m_ptr->ml) {
+					monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_DEFAULT);
 					add_monster_message(m_name, m_ptr, MON_MSG_FLEE_IN_TERROR, TRUE);
+				}
 			}
 		}
 	}
@@ -733,7 +744,7 @@ void textui_cmd_fire_at_nearest(void) {
 
 	/* Require usable ammo */
 	if (item < 0) {
-		msg("You have no ammunition in the quiver to fire");
+		msg("You have no ammunition in the quiver to fire.");
 		return;
 	}
 

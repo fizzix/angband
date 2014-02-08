@@ -1,5 +1,5 @@
 /*
- * File: init2.c
+ * File: init.c
  * Purpose: Various game initialistion routines
  *
  * Copyright (c) 1997 Ben Harrison
@@ -18,26 +18,35 @@
 
 #include "angband.h"
 #include "buildid.h"
-#include "button.h"
 #include "cave.h"
 #include "cmds.h"
 #include "game-event.h"
 #include "game-cmd.h"
 #include "generate.h"
 #include "history.h"
+#include "hint.h"
 #include "keymap.h"
 #include "init.h"
 #include "monster/mon-init.h"
+#include "monster/mon-list.h"
 #include "monster/mon-msg.h"
 #include "monster/mon-util.h"
 #include "object/object.h"
+#include "object/obj-list.h"
 #include "object/slays.h"
 #include "object/tvalsval.h"
 #include "option.h"
 #include "parser.h"
 #include "prefs.h"
+#include "quest.h"
 #include "randname.h"
 #include "squelch.h"
+
+/*
+ * Structure (not array) of size limits
+ */
+maxima *z_info;
+
 
 static struct history_chart *histories;
 
@@ -262,7 +271,6 @@ struct parser *init_parse_z(void) {
 	struct parser *p = parser_new();
 
 	parser_setpriv(p, z);
-	parser_reg(p, "V sym version", ignored);
 	parser_reg(p, "M sym label int value", parse_z);
 	return p;
 }
@@ -377,7 +385,6 @@ struct parser *init_parse_kb(void) {
 	struct kb_parsedata *d = mem_zalloc(sizeof(*d));
 	parser_setpriv(p, d);
 
-	parser_reg(p, "V sym version", ignored);
 	parser_reg(p, "D sym label int value", parse_kb_d);
 	parser_reg(p, "N sym tval str name", parse_kb_n);
 	parser_reg(p, "B int breakage", parse_kb_b);
@@ -605,7 +612,6 @@ static enum parser_error parse_k_l(struct parser *p) {
 struct parser *init_parse_k(void) {
 	struct parser *p = parser_new();
 	parser_setpriv(p, NULL);
-	parser_reg(p, "V sym version", ignored);
 	parser_reg(p, "N int index str name", parse_k_n);
 	parser_reg(p, "G char glyph sym color", parse_k_g);
 	parser_reg(p, "I sym tval int sval", parse_k_i);
@@ -837,7 +843,6 @@ static enum parser_error parse_a_d(struct parser *p) {
 struct parser *init_parse_a(void) {
 	struct parser *p = parser_new();
 	parser_setpriv(p, NULL);
-	parser_reg(p, "V sym version", ignored);
 	parser_reg(p, "N int index str name", parse_a_n);
 	parser_reg(p, "I sym tval sym sval", parse_a_i);
 	parser_reg(p, "W int level int rarity int weight int cost", parse_a_w);
@@ -1119,7 +1124,6 @@ static enum parser_error parse_f_e(struct parser *p) {
 struct parser *init_parse_f(void) {
 	struct parser *p = parser_new();
 	parser_setpriv(p, NULL);
-	parser_reg(p, "V sym version", ignored);
 	parser_reg(p, "N uint index str name", parse_f_n);
 	parser_reg(p, "G char glyph sym color", parse_f_g);
 	parser_reg(p, "M uint index", parse_f_m);
@@ -1362,7 +1366,6 @@ static enum parser_error parse_e_d(struct parser *p) {
 struct parser *init_parse_e(void) {
 	struct parser *p = parser_new();
 	parser_setpriv(p, NULL);
-	parser_reg(p, "V sym version", ignored);
 	parser_reg(p, "N int index str name", parse_e_n);
 	parser_reg(p, "W int level int rarity int pad int cost", parse_e_w);
 	parser_reg(p, "X int rating int xtra", parse_e_x);
@@ -1583,7 +1586,6 @@ static enum parser_error parse_p_c(struct parser *p) {
 struct parser *init_parse_p(void) {
 	struct parser *p = parser_new();
 	parser_setpriv(p, NULL);
-	parser_reg(p, "V sym version", ignored);
 	parser_reg(p, "N uint index str name", parse_p_n);
 	parser_reg(p, "S int str int int int wis int dex int con", parse_p_s);
 	parser_reg(p, "R int dis int dev int sav int stl int srh int fos int thm int thb int throw int dig", parse_p_r);
@@ -1814,7 +1816,6 @@ static enum parser_error parse_c_f(struct parser *p) {
 struct parser *init_parse_c(void) {
 	struct parser *p = parser_new();
 	parser_setpriv(p, NULL);
-	parser_reg(p, "V sym version", ignored);
 	parser_reg(p, "N uint index str name", parse_c_n);
 	parser_reg(p, "S int str int int int wis int dex int con", parse_c_s);
 	parser_reg(p, "C int dis int dev int sav int stl int srh int fos int thm int thb int throw int dig", parse_c_c);
@@ -1914,7 +1915,6 @@ static enum parser_error parse_v_d(struct parser *p) {
 struct parser *init_parse_v(void) {
 	struct parser *p = parser_new();
 	parser_setpriv(p, NULL);
-	parser_reg(p, "V sym version", ignored);
 	parser_reg(p, "N uint index str name", parse_v_n);
 	parser_reg(p, "X uint type int rating uint height uint width", parse_v_x);
 	parser_reg(p, "D str text", parse_v_d);
@@ -1985,7 +1985,6 @@ static enum parser_error parse_h_d(struct parser *p) {
 struct parser *init_parse_h(void) {
 	struct parser *p = parser_new();
 	parser_setpriv(p, NULL);
-	parser_reg(p, "V sym version", ignored);
 	parser_reg(p, "N uint chart int next int roll", parse_h_n);
 	parser_reg(p, "D str text", parse_h_d);
 	return p;
@@ -2189,7 +2188,6 @@ static enum parser_error parse_s_d(struct parser *p) {
 struct parser *init_parse_s(void) {
 	struct parser *p = parser_new();
 	parser_setpriv(p, NULL);
-	parser_reg(p, "V sym version", ignored);
 	parser_reg(p, "N uint index str name", parse_s_n);
 	parser_reg(p, "I uint tval uint sval uint snum", parse_s_i);
 	parser_reg(p, "D str desc", parse_s_d);
@@ -2690,6 +2688,9 @@ static errr init_other(void)
 	/* Initialize the "message" package */
 	(void)messages_init();
 
+	monster_list_init();
+	object_list_init();
+
 	/*** Prepare grid arrays ***/
 
 	cave = cave_new();
@@ -2709,15 +2710,9 @@ static errr init_other(void)
 	l_list = C_ZNEW(z_info->r_max, monster_lore);
 
 
-	/*** Prepare mouse buttons ***/
-
-	button_init(button_add_text, button_kill_text);
-
-
 	/*** Prepare quest array ***/
 
-	/* Quests */
-	q_list = C_ZNEW(MAX_Q_IDX, quest);
+	quest_init();
 
 
 	/*** Prepare the inventory ***/
@@ -2989,10 +2984,8 @@ void cleanup_angband(void)
 	/* Free the stores */
 	if (stores) free_stores();
 
-	/* Free the quest list */
-	FREE(q_list);
+	quest_free();
 
-	button_free();
 	FREE(p_ptr->inventory);
 
 	/* Free the lore, monster, and object lists */
@@ -3013,6 +3006,9 @@ void cleanup_angband(void)
 
 	/* Free the "quarks" */
 	quarks_free();
+
+	monster_list_finalize();
+	object_list_finalize();
 
 	cleanup_parser(&k_parser);
 	cleanup_parser(&kb_parser);

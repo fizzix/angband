@@ -28,8 +28,8 @@
  */
 static const struct mon_spell mon_spell_table[] =
 {
-    #define RSF(a, b, c, d, e, f, g, h, i, j, k, l, m) \
-			{ RSF_##a, b, c, d, e, f, g, h, i, j, k, l, m },
+    #define RSF(a, b, c, d, e, f, g, h, i, j, k, l, m, n) \
+			{ RSF_##a, b, c, d, e, f, g, h, i, j, k, l, m, n },
 		#define RV(b, x, y, m) {b, x, y, m}
     #include "list-mon-spells.h"
     #undef RSF
@@ -72,7 +72,7 @@ static int nonhp_dam(int spell, int rlev, aspect dam_aspect)
 	dam += (rlev * rs_ptr->rlev_dam.base / 100);
 
 	if (rs_ptr->rlev_dam.m_bonus == 1) /* then rlev affects dice */
-		dam += damcalc(MIN(1, rs_ptr->rlev_dam.dice * rlev / 100), 
+		dam += damcalc(MAX(1, rs_ptr->rlev_dam.dice * rlev / 100), 
 				rs_ptr->rlev_dam.sides, dam_aspect);
 	else /* rlev affects sides */
 		dam += damcalc(rs_ptr->rlev_dam.dice, rs_ptr->rlev_dam.sides *
@@ -175,7 +175,7 @@ static void drain_mana(struct monster *m_ptr, int rlev, bool seen)
 	char m_name[80];
 
 	/* Get the monster name (or "it") */
-	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_CAPITAL);
+	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_STANDARD);
 
 	if (!p_ptr->csp) {
 		msg("The draining fails.");
@@ -230,11 +230,11 @@ static void heal_self(struct monster *m_ptr, int rlev, bool seen)
 	char m_name[80], m_poss[80];
 
 	/* Get the monster name (or "it") */
-	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_CAPITAL);
+	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_STANDARD);
 
 	/* Get the monster possessive ("his"/"her"/"its") */
 	monster_desc(m_poss, sizeof(m_poss), m_ptr,
-			MDESC_PRO2 | MDESC_POSS);
+			MDESC_PRO_VIS | MDESC_POSS);
 
 	/* Heal some */
 	m_ptr->hp += (rlev * 6);
@@ -381,9 +381,10 @@ static void do_side_effects(int spell, int dam, struct monster *m_ptr, bool seen
 			} else {
 				switch (re_ptr->flag) {
 					case S_INV_DAM:
-						if (dam > 0)
-							inven_damage(p_ptr, re_ptr->gf, MIN(dam *
-								randcalc(re_ptr->dam, 0, RANDOMISE), 300));
+						if (dam > 0) {
+							int rand_dam = dam * randcalc(re_ptr->dam, 0, RANDOMISE);
+							inven_damage(p_ptr, re_ptr->gf, MIN(rand_dam, 300));
+						}
 						break;
 
 					case S_TELEPORT: /* m_bonus is used as a clev filter */
@@ -529,7 +530,7 @@ void do_mon_spell(int spell, struct monster *m_ptr, bool seen)
 	int rlev = ((m_ptr->race->level >= 1) ? m_ptr->race->level : 1);
 
 	/* Get the monster name (or "it") */
-	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_CAPITAL);
+	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_STANDARD);
 
 	/* See if it hits */
 	if (rs_ptr->hit == 100) 
@@ -563,7 +564,7 @@ void do_mon_spell(int spell, struct monster *m_ptr, bool seen)
 	dam = mon_spell_dam(spell, m_ptr->hp, rlev, RANDOMISE);
 
 	/* Get the "died from" name in case this attack kills @ */
-	monster_desc(ddesc, sizeof(ddesc), m_ptr, MDESC_SHOW | MDESC_IND2);
+	monster_desc(ddesc, sizeof(ddesc), m_ptr, MDESC_DIED_FROM);
 
 	/* Display the attack, adjust for resists and apply effects */
 	if (rs_ptr->type & RST_BOLT)
@@ -709,3 +710,31 @@ int best_spell_power(const monster_race *r_ptr, int resist)
 	return best_dam;
 }
 
+static bool mon_spell_is_valid(int spell)
+{
+	return spell > RSF_NONE && spell < RSF_MAX;
+}
+
+static bool mon_spell_has_damage(int spell)
+{
+	return mon_spell_table[spell].type & (RST_BOLT | RST_BALL | RST_BREATH | RST_ATTACK);
+}
+
+const char *mon_spell_lore_description(int spell)
+{
+	if (!mon_spell_is_valid(spell))
+		return "";
+
+	return mon_spell_table[spell].lore_desc;
+}
+
+int mon_spell_lore_damage(int spell, const monster_race *race, bool know_hp)
+{
+	int hp;
+
+	if (!mon_spell_is_valid(spell) || !mon_spell_has_damage(spell))
+		return 0;
+
+	hp = (know_hp) ? race->avg_hp : 0;
+	return mon_spell_dam(spell, hp, race->level, MAXIMISE);
+}

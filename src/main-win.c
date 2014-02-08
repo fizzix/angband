@@ -82,6 +82,7 @@
 #include "buildid.h"
 #include "cmds.h"
 #include "cave.h"
+#include "dungeon.h"
 #include "init.h"
 #include "files.h"
 #include "grafmode.h"
@@ -978,10 +979,12 @@ static void load_sound_prefs(void)
 
 	for (i = 0; i < MSG_MAX; i++)
 	{
-		/* Ignore empty sound strings */
-		if (!angband_sound_name[i][0]) continue;
+		const char *sound_name = message_sound_name(i);
 
-		GetPrivateProfileString("Sound", angband_sound_name[i], "", tmp, sizeof(tmp), ini_path);
+		/* Ignore empty sound strings */
+		if (!sound_name[0]) continue;
+
+		GetPrivateProfileString("Sound", sound_name, "", tmp, sizeof(tmp), ini_path);
 
 		num = tokenize_whitespace(tmp, SAMPLE_MAX, zz);
 
@@ -1414,10 +1417,7 @@ static errr term_force_font(term_data *td, const char *path)
 	if (!file_exists(buf)) return (1);
 
 	/* Load the new font */
-	if (!AddFontResource(buf)) return (1);
-
-	/* Notify other applications that a new font is available  XXX */
-	PostMessage(HWND_BROADCAST, WM_FONTCHANGE, 0, 0);
+	if (!AddFontResourceEx(buf, FR_PRIVATE, 0)) return (1);
 
 	/* Save new font name */
 	td->font_file = string_make(base);
@@ -2307,7 +2307,7 @@ static errr Term_pict_win(int x, int y, int n, const int *ap, const wchar_t *cp,
 
 	/* Draw attr/char pairs */
 	for (i = n-1; i >= 0; i--, x2 -= w2) {
-		byte a = ap[i];
+		int a = ap[i];
 		wchar_t c = cp[i];
 
 		/* Extract picture */
@@ -2494,7 +2494,7 @@ static errr Term_pict_win_alpha(int x, int y, int n, const int *ap, const wchar_
 	/* Draw attr/char pairs */
 	for (i = n-1; i >= 0; i--, x2 -= w2)
 	{
-		byte a = ap[i];
+		int a = ap[i];
 		wchar_t c = cp[i];
 
 		/* Extract picture */
@@ -2576,13 +2576,13 @@ static void windows_map_aux(void)
 	int ta;
 	wchar_t tc;
 
-	td->map_tile_wid = (td->tile_wid * td->cols) / DUNGEON_WID;
-	td->map_tile_hgt = (td->tile_hgt * td->rows) / DUNGEON_HGT;
+	td->map_tile_wid = (td->tile_wid * td->cols) / cave->width;
+	td->map_tile_hgt = (td->tile_hgt * td->rows) / cave->height;
 
 	min_x = 0;
 	min_y = 0;
-	max_x = DUNGEON_WID;
-	max_y = DUNGEON_HGT;
+	max_x = cave->width;
+	max_y = cave->height;
 
 	/* Draw the map */
 	for (x = min_x; x < max_x; x++)
@@ -3321,7 +3321,7 @@ static void start_screensaver(void)
 	my_strcpy(op_ptr->full_name, saverfilename, sizeof(op_ptr->full_name));
 
 	/* Set 'savefile' to a valid name */
-	savefile_set_name(player_safe_name(p_ptr));
+	savefile_set_name(player_safe_name(p_ptr, FALSE));
 
 	/* Does the savefile already exist? */
 	file_exist = file_exists(savefile);

@@ -1,6 +1,6 @@
 /*
- * File: cmd1.c
- * Purpose: Searching, movement, and pickup
+ * File: cmd-pickup.c
+ * Purpose: Pickup code
  *
  * Copyright (c) 1997 Ben Harrison, James E. Wilson, Robert A. Koeneke,
  * Copyright (c) 2007 Leon Marrick
@@ -33,120 +33,36 @@
 #include "trap.h"
 
 
+
 /*
- * Search for hidden things.  Returns true if a search was attempted, returns
- * false when the player has a 0% chance of finding anything.  Prints messages
- * for negative confirmation when verbose mode is requested.
+ * Pick up objects on the floor beneath you.  -LM-
  */
-bool search(bool verbose)
+void do_cmd_pickup(cmd_code code, cmd_arg args[])
 {
-	int py = p_ptr->py;
-	int px = p_ptr->px;
+	int energy_cost;
 
-	int y, x, chance;
+	/* Autopickup first */
+	energy_cost = do_autopickup() * 10;
 
-	bool found = FALSE;
+	/* Pick up floor objects with a menu for multiple objects */
+	energy_cost += py_pickup_item(1, args[0].item) * 10;
 
-	object_type *o_ptr;
+	/* Limit */
+	if (energy_cost > 100) energy_cost = 100;
 
+	/* Charge this amount of energy. */
+	p_ptr->energy_use = energy_cost;
+}
 
-	/* Start with base search ability */
-	chance = p_ptr->state.skills[SKILL_SEARCH];
-
-	/* Penalize various conditions */
-	if (p_ptr->timed[TMD_BLIND] || no_light()) chance = chance / 10;
-	if (p_ptr->timed[TMD_CONFUSED] || p_ptr->timed[TMD_IMAGE]) chance = chance / 10;
-
-	/* Prevent fruitless searches */
-	if (chance <= 0)
-	{
-		if (verbose)
-		{
-			msg("You can't make out your surroundings well enough to search.");
-
-			/* Cancel repeat */
-			disturb(p_ptr, 0, 0);
-		}
-
-		return FALSE;
-	}
-
-	/* Search the nearby grids, which are always in bounds */
-	for (y = (py - 1); y <= (py + 1); y++)
-	{
-		for (x = (px - 1); x <= (px + 1); x++)
-		{
-			/* Sometimes, notice things */
-			if (randint0(100) < chance)
-			{
-				/* Invisible trap */
-				if (cave_issecrettrap(cave, y, x))
-				{
-					found = TRUE;
-
-					/* Pick a trap */
-					pick_trap(y, x);
-
-					/* Message */
-					msg("You have found a trap.");
-
-					/* Disturb */
-					disturb(p_ptr, 0, 0);
-				}
-
-				/* Secret door */
-				if (cave_issecretdoor(cave, y, x))
-				{
-					found = TRUE;
-
-					/* Message */
-					msg("You have found a secret door.");
-
-					/* Pick a door */
-					place_closed_door(cave, y, x);
-
-					/* Disturb */
-					disturb(p_ptr, 0, 0);
-				}
-
-				/* Scan all objects in the grid */
-				for (o_ptr = get_first_object(y, x); o_ptr; o_ptr = get_next_object(o_ptr))
-				{
-					/* Skip if not a trapped chest */
-					if (!is_trapped_chest(o_ptr)) continue;
-
-					/* Identify once */
-					if (!object_is_known(o_ptr))
-					{
-						found = TRUE;
-
-						/* Message */
-						msg("You have discovered a trap on the chest!");
-
-						/* Know the trap */
-						object_notice_everything(o_ptr);
-
-						/* Notice it */
-						disturb(p_ptr, 0, 0);
-					}
-				}
-			}
-		}
-	}
-
-	if (verbose && !found)
-	{
-		if (chance >= 100)
-			msg("There are no secrets here.");
-		else
-			msg("You found nothing.");
-	}
-
-	return TRUE;
+/*
+ * Pick up objects on the floor beneath you.  -LM-
+ */
+void do_cmd_autopickup(cmd_code code, cmd_arg args[])
+{
+	p_ptr->energy_use = do_autopickup() * 10;
 }
 
 
-/*** Pickup ***/
 
 /*
  * Pickup all gold at the player's current location.
@@ -410,9 +326,7 @@ int do_autopickup(void)
 	return objs_picked_up;
 }
 
-
-
-/*
+/**
  * Pick up objects and treasure on the floor.  -LM-
  *
  * Called with pickup:
@@ -446,8 +360,10 @@ int do_autopickup(void)
  *
  * Note the lack of chance for the character to be disturbed by unmarked
  * objects.  They are truly "unknown".
+ *
+ * \param item is the floor item index (must be negative) to pick up.
  */
-byte py_pickup(int pickup)
+byte py_pickup_item(int pickup, int item)
 {
 	int py = p_ptr->py;
 	int px = p_ptr->px;
@@ -486,8 +402,12 @@ byte py_pickup(int pickup)
 	    return objs_picked_up;
 	}
 
+	/* Use the item that we are given, if it is on the floor. */
+	if (item < 0)
+		this_o_idx = 0 - item;
+
 	/* Use a menu interface for multiple objects, or pickup single objects */
-	if (pickup == 1)
+	if (pickup == 1 && !this_o_idx)
 	{
 		if (floor_num > 1)
 			pickup = 2;
@@ -495,9 +415,8 @@ byte py_pickup(int pickup)
 			this_o_idx = floor_list[0];
 	}
 
-
 	/* Display a list if requested. */
-	if (pickup == 2)
+	if (pickup == 2 && !this_o_idx)
 	{
 		const char *q, *s;
 		int item;
@@ -538,6 +457,10 @@ byte py_pickup(int pickup)
 	return (objs_picked_up);
 }
 
+byte py_pickup(int pickup)
+{
+	return py_pickup_item(pickup, 0);
+}
 
 /*
  * Move player in the given direction.

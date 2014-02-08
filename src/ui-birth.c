@@ -17,7 +17,6 @@
  */
 
 #include "angband.h"
-#include "button.h"
 #include "cmds.h"
 #include "files.h"
 #include "game-cmd.h"
@@ -25,6 +24,7 @@
 #include "object/tvalsval.h"
 #include "ui-birth.h"
 #include "ui-menu.h"
+#include "ui-options.h"
 
 
 /*
@@ -98,14 +98,7 @@ static enum birth_stage get_quickstart_command(void)
 	/* Prompt for it */
 	prt("New character based on previous one:", 0, 0);
 	prt(prompt, Term->hgt - 1, Term->wid / 2 - strlen(prompt) / 2);
-	
-	/* Buttons */
-	button_kill_all();
-	button_add("[Y]", 'y');
-	button_add("[N]", 'n');
-	button_add("[C]", 'c');
-	redraw_stuff(p_ptr);
-	
+
 	do
 	{
 		/* Get a key */
@@ -131,10 +124,6 @@ static enum birth_stage get_quickstart_command(void)
 			next = BIRTH_COMPLETE;
 		}
 	} while (next == BIRTH_QUICKSTART);
-	
-	/* Buttons */
-	button_kill_all();
-	redraw_stuff(p_ptr);
 
 	/* Clear prompt */
 	clear_from(23);
@@ -519,12 +508,12 @@ static void clear_question(void)
 
 
 #define BIRTH_MENU_HELPTEXT \
-	"{lightblue}Please select your character from the menu below:{/}\n\n" \
-	"Use the {lightgreen}movement keys{/} to scroll the menu, " \
-	"{lightgreen}Enter{/} to select the current menu item, '{lightgreen}*{/}' " \
-	"for a random menu item, '{lightgreen}ESC{/}' to step back through the " \
-	"birth process, '{lightgreen}={/}' for the birth options, '{lightgreen}?{/} " \
-	"for help, or '{lightgreen}Ctrl-X{/}' to quit."
+	"{light blue}Please select your character from the menu below:{/}\n\n" \
+	"Use the {light green}movement keys{/} to scroll the menu, " \
+	"{light green}Enter{/} to select the current menu item, '{light green}*{/}' " \
+	"for a random menu item, '{light green}ESC{/}' to step back through the " \
+	"birth process, '{light green}={/}' for the birth options, '{light green}?{/} " \
+	"for help, or '{light green}Ctrl-X{/}' to quit."
 
 /* Show the birth instructions on an otherwise blank screen */	
 static void print_menu_instructions(void)
@@ -662,14 +651,6 @@ static enum birth_stage roller_command(bool first_call)
 	if (first_call)
 		prev_roll = FALSE;
 
-	/* Add buttons */
-	button_add("[ESC]", ESCAPE);
-	button_add("[Enter]", KC_ENTER);
-	button_add("[r]", 'r');
-	if (prev_roll) button_add("[p]", 'p');
-	clear_from(Term->hgt - 2);
-	redraw_stuff(p_ptr);
-
 	/* Prepare a prompt (must squeeze everything in) */
 	strnfcat(prompt, sizeof (prompt), &promptlen, "['r' to reroll");
 	if (prev_roll) 
@@ -684,9 +665,6 @@ static enum birth_stage roller_command(bool first_call)
 
 	if (ch.code == ESCAPE) 
 	{
-		button_kill('r');
-		button_kill('p');
-
 		next = BIRTH_BACK;
 	}
 
@@ -727,13 +705,6 @@ static enum birth_stage roller_command(bool first_call)
 	{
 		bell("Illegal roller command!");
 	}
-
-	/* Kill buttons */
-	button_kill(ESCAPE);
-	button_kill(KC_ENTER);
-	button_kill('r');
-	button_kill('p');
-	redraw_stuff(p_ptr);
 
 	return next;
 }
@@ -914,14 +885,7 @@ static enum birth_stage get_confirm_command(void)
 
 	/* Prompt for it */
 	prt(prompt, Term->hgt - 1, Term->wid / 2 - strlen(prompt) / 2);
-	
-	/* Buttons */
-	button_kill_all();
-	button_add("[Continue]", 'q');
-	button_add("[ESC]", ESCAPE);
-	button_add("[S]", 'S');
-	redraw_stuff(p_ptr);
-	
+
 	/* Get a key */
 	ke = inkey();
 	
@@ -944,10 +908,6 @@ static enum birth_stage get_confirm_command(void)
 		cmd_insert(CMD_ACCEPT_CHARACTER);
 		next = BIRTH_COMPLETE;
 	}
-	
-	/* Buttons */
-	button_kill_all();
-	redraw_stuff(p_ptr);
 
 	/* Clear prompt */
 	clear_from(23);

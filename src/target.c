@@ -97,9 +97,6 @@ static void look_mon_desc(char *buf, size_t max, int m_idx)
  * Currently, a monster is "target_able" if it is visible, and if
  * the player can hit it with a projection, and the player is not
  * hallucinating.  This allows use of "use closest target" macros.
- *
- * Future versions may restrict the ability to target "trappers"
- * and "mimics", but the semantics is a little bit weird.
  */
 bool target_able(struct monster *m)
 {
@@ -143,7 +140,7 @@ bool target_okay(void)
 /*
  * Set the target to a monster (or nobody)
  */
-void target_set_monster(struct monster *mon)
+bool target_set_monster(struct monster *mon)
 {
 	/* Acceptable target */
 	if (mon && target_able(mon))
@@ -152,17 +149,16 @@ void target_set_monster(struct monster *mon)
 		target_who = mon;
 		target_y = mon->fy;
 		target_x = mon->fx;
+		return TRUE;
 	}
 
-	/* Clear target */
-	else
-	{
-		/* Reset target info */
-		target_set = FALSE;
-		target_who = NULL;
-		target_y = 0;
-		target_x = 0;
-	}
+	/* Reset target info */
+	target_set = FALSE;
+	target_who = NULL;
+	target_y = 0;
+	target_x = 0;
+
+	return FALSE;
 }
 
 
@@ -501,6 +497,72 @@ static void target_display_help(bool monster, bool free)
 	text_out_indent = 0;
 }
 
+/* Size of the array that is used for object names during targeting. */
+#define TARGET_OUT_VAL_SIZE 256
+
+/**
+ * Display the object name of the selected object and allow for full object recall. Returns
+ * an event that occurred display.
+ *
+ * This will only work for a single object on the ground and not a pile. This loop is
+ * similar to the monster recall loop in target_set_interactive_aux(). The out_val array
+ * size needs to match the size that is passed in (since this code was extracted from there).
+ *
+ * \param o_ptr is the object to describe.
+ * \param y is the cave row of the object.
+ * \param x is the cave column of the object.
+ * \param out_val is the string that holds the name of the object and is returned to the caller.
+ * \param s1 is part of the output string.
+ * \param s2 is part of the output string.
+ * \param s3 is part of the output string.
+ * \param coords is part of the output string
+ */
+static ui_event target_recall_loop_object(object_type *o_ptr, int y, int x, char out_val[TARGET_OUT_VAL_SIZE], const char *s1, const char *s2, const char *s3, char *coords)
+{
+	bool recall = FALSE;
+	ui_event press;
+
+	while (1) {
+		if (recall) {
+			display_object_recall_interactive(o_ptr);
+			press = inkey_m();
+		}
+		else {
+			char o_name[80];
+
+			/* Obtain an object description */
+			object_desc(o_name, sizeof(o_name), o_ptr,
+						ODESC_PREFIX | ODESC_FULL);
+
+			/* Describe the object */
+			if (p_ptr->wizard)
+			{
+				strnfmt(out_val, TARGET_OUT_VAL_SIZE,
+						"%s%s%s%s, %s (%d:%d).",
+						s1, s2, s3, o_name, coords, y, x);
+			}
+			else
+			{
+				strnfmt(out_val, TARGET_OUT_VAL_SIZE,
+						"%s%s%s%s, %s.", s1, s2, s3, o_name, coords);
+			}
+
+			prt(out_val, 0, 0);
+			move_cursor_relative(y, x);
+			press = inkey_m();
+		}
+
+		if ((press.type == EVT_MOUSE) && (press.mouse.button == 1) && (KEY_GRID_X(press) == x) && (KEY_GRID_Y(press) == y))
+			recall = !recall;
+		else if ((press.type == EVT_KBRD) && (press.key.code == 'r'))
+			recall = !recall;
+		else
+			break;
+	}
+
+	return press;
+}
+
 /*
  * Examine a grid, return a keypress.
  *
@@ -537,7 +599,7 @@ static ui_event target_set_interactive_aux(int y, int x, int mode)
 	//struct keypress query;
 	ui_event press;
 
-	char out_val[256];
+	char out_val[TARGET_OUT_VAL_SIZE];
 
 	char coords[20];
 
@@ -616,7 +678,7 @@ static ui_event target_set_interactive_aux(int y, int x, int mode)
 				boring = FALSE;
 
 				/* Get the monster name ("a kobold") */
-				monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_IND2);
+				monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_IND_VIS);
 
 				/* Hack -- track this monster race */
 				monster_race_track(m_ptr->race);
@@ -633,17 +695,8 @@ static ui_event target_set_interactive_aux(int y, int x, int mode)
 					/* Recall */
 					if (recall)
 					{
-						/* Save screen */
-						screen_save();
-
-						/* Recall on screen */
-						screen_roff(m_ptr->race, l_ptr);
-
-						/* Command */
+						lore_show_interactive(m_ptr->race, l_ptr);
 						press = inkey_m();
-
-						/* Load screen */
-						screen_load();
 					}
 
 					/* Normal */
@@ -853,35 +906,11 @@ static ui_event target_set_interactive_aux(int y, int x, int mode)
 			/* Only one object to display */
 			else
 			{
-
-				char o_name[80];
-
 				/* Get the single object in the list */
 				object_type *o_ptr = object_byid(floor_list[0]);
 
-				/* Not boring */
-				boring = FALSE;
-
-				/* Obtain an object description */
-				object_desc(o_name, sizeof(o_name), o_ptr,
-							ODESC_PREFIX | ODESC_FULL);
-
-				/* Describe the object */
-				if (p_ptr->wizard)
-				{
-					strnfmt(out_val, sizeof(out_val),
-							"%s%s%s%s, %s (%d:%d).",
-							s1, s2, s3, o_name, coords, y, x);
-				}
-				else
-				{
-					strnfmt(out_val, sizeof(out_val),
-							"%s%s%s%s, %s.", s1, s2, s3, o_name, coords);
-				}
-
-				prt(out_val, 0, 0);
-				move_cursor_relative(y, x);
-				press = inkey_m();
+				/* Allow user to recall an object */
+				press = target_recall_loop_object(o_ptr, y, x, out_val, s1, s2, s3, coords);
 
 				/* Stop on everything but "return"/"space" */
 				if ((press.key.code != KC_ENTER) && (press.key.code != ' ')) break;
@@ -889,11 +918,8 @@ static ui_event target_set_interactive_aux(int y, int x, int mode)
 				/* Sometimes stop at "space" key */
 				if ((press.key.code == ' ') && !(mode & (TARGET_LOOK))) break;
 
-				/* Change the intro */
-				s1 = "It is ";
-
 				/* Plurals */
-				if (o_ptr->number != 1) s1 = "They are ";
+				s1 = VERB_AGREEMENT(o_ptr->number, "It is ", "They are ");
 
 				/* Preposition */
 				s2 = "on ";
@@ -1549,8 +1575,8 @@ bool target_set_interactive(int mode, int x, int y)
 				/*if (press.mouse.button == 3) {
 				} else*/
 				{
-					int dungeon_hgt = (p_ptr->depth == 0) ? TOWN_HGT : DUNGEON_HGT;
-					int dungeon_wid = (p_ptr->depth == 0) ? TOWN_WID : DUNGEON_WID;
+					int dungeon_hgt = cave->height;
+					int dungeon_wid = cave->width;
 
 					y = KEY_GRID_Y(press);//.mouse.y;
 					x = KEY_GRID_X(press);//.mouse.x;
@@ -1711,8 +1737,8 @@ bool target_set_interactive(int mode, int x, int y)
 			/* Handle "direction" */
 			if (d)
 			{
-				int dungeon_hgt = (p_ptr->depth == 0) ? TOWN_HGT : DUNGEON_HGT;
-				int dungeon_wid = (p_ptr->depth == 0) ? TOWN_WID : DUNGEON_WID;
+				int dungeon_hgt = cave->height;
+				int dungeon_wid = cave->width;
 
 				/* Move */
 				x += ddx[d];
@@ -1793,3 +1819,16 @@ struct monster *target_get_monster(void)
 {
 	return target_who;
 }
+
+
+/*
+ * True if the player's current target is in LOS.
+ */
+bool target_sighted(void)
+{
+	return target_okay() &&
+			panel_contains(target_y, target_x) &&
+			 /* either the target is a grid and is visible, or it is a monster that is visible */
+			((!target_who && player_can_see_bold(target_y, target_x)) || (target_who && target_who->ml));
+}
+

@@ -162,101 +162,7 @@ static int choose_attack_spell(struct monster *m_ptr, bitflag f[RSF_SIZE])
 	int num = 0;
 	byte spells[RSF_MAX];
 
-	int i, py = p_ptr->py, px = p_ptr->px;
-
-	bool has_escape, has_attack, has_summon, has_tactic;
-	bool has_annoy, has_haste, has_heal;
-
-
-    /* This used to be the birth_ai_smart option which
-     has been broken for a while and has been removed. */
-	if ((FALSE) && !rf_has(m_ptr->race->flags, RF_STUPID))
-	{
-		/* What have we got? */
-		has_escape = test_spells(f, RST_ESCAPE);
-		has_attack = test_spells(f, RST_ATTACK | RST_BOLT | RST_BALL | RST_BREATH);
-		has_summon = test_spells(f, RST_SUMMON);
-		has_tactic = test_spells(f, RST_TACTIC);
-		has_annoy = test_spells(f, RST_ANNOY);
-		has_haste = test_spells(f, RST_HASTE);
-		has_heal = test_spells(f, RST_HEAL);
-
-		/*** Try to pick an appropriate spell type ***/
-
-		/* Hurt badly or afraid, attempt to flee */
-		if (has_escape && ((m_ptr->hp < m_ptr->maxhp / 4) || m_ptr->m_timed[MON_TMD_FEAR]))
-		{
-			/* Choose escape spell */
-			set_spells(f, RST_ESCAPE);
-		}
-
-		/* Still hurt badly, couldn't flee, attempt to heal */
-		else if (has_heal && m_ptr->hp < m_ptr->maxhp / 4)
-		{
-			/* Choose heal spell */
-			set_spells(f, RST_HEAL);
-		}
-
-		/* Player is close and we have attack spells, blink away */
-		else if (has_tactic && (distance(py, px, m_ptr->fy, m_ptr->fx) < 4) &&
-		         has_attack && (randint0(100) < 75))
-		{
-			/* Choose tactical spell */
-			set_spells(f, RST_TACTIC);
-		}
-
-		/* We're hurt (not badly), try to heal */
-		else if (has_heal && (m_ptr->hp < m_ptr->maxhp * 3 / 4) &&
-		         (randint0(100) < 60))
-		{
-			/* Choose heal spell */
-			set_spells(f, RST_HEAL);
-		}
-
-		/* Summon if possible (sometimes) */
-		else if (has_summon && (randint0(100) < 50))
-		{
-			/* Choose summon spell */
-			set_spells(f, RST_SUMMON);
-		}
-
-		/* Attack spell (most of the time) */
-		else if (has_attack && (randint0(100) < 85))
-		{
-			/* Choose attack spell */
-			set_spells(f, RST_ATTACK | RST_BOLT | RST_BALL | RST_BREATH);
-		}
-
-		/* Try another tactical spell (sometimes) */
-		else if (has_tactic && (randint0(100) < 50))
-		{
-			/* Choose tactic spell */
-			set_spells(f, RST_TACTIC);
-		}
-
-		/* Haste self if we aren't already somewhat hasted (rarely) */
-		else if (has_haste && (randint0(100) < (20 - m_ptr->m_timed[MON_TMD_FAST])))
-		{
-			/* Choose haste spell */
-			set_spells(f, RST_HASTE);
-		}
-
-		/* Annoy player (most of the time) */
-		else if (has_annoy && (randint0(100) < 85))
-		{
-			/* Choose annoyance spell */
-			set_spells(f, RST_ANNOY);
-		}
-
-		/* Else choose no spell */
-		else
-		{
-			rsf_wipe(f);
-		}
-
-		/* Anything left? */
-		if (rsf_is_empty(f)) return (FLAG_END);
-	}
+	int i;
 
 	/* Extract all spells: "innate", "normal", "bizarre" */
 	for (i = FLAG_START, num = 0; i < RSF_MAX; i++)
@@ -402,13 +308,13 @@ bool make_attack_spell(struct monster *m_ptr)
 	if (rsf_is_empty(f)) return FALSE;
 
 	/* Get the monster name (or "it") */
-	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_CAPITAL);
+	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_STANDARD);
 
 	/* Get the monster possessive ("his"/"her"/"its") */
-	monster_desc(m_poss, sizeof(m_poss), m_ptr, MDESC_PRO2 | MDESC_POSS);
+	monster_desc(m_poss, sizeof(m_poss), m_ptr, MDESC_PRO_VIS | MDESC_POSS);
 
 	/* Get the "died from" name */
-	monster_desc(ddesc, sizeof(ddesc), m_ptr, MDESC_SHOW | MDESC_IND2);
+	monster_desc(ddesc, sizeof(ddesc), m_ptr, MDESC_DIED_FROM);
 
 	/* Choose a spell to cast */
 	thrown_spell = choose_attack_spell(m_ptr, f);
@@ -1547,10 +1453,10 @@ static bool make_attack_normal(struct monster *m_ptr, struct player *p)
 
 
 	/* Get the monster name (or "it") */
-	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_CAPITAL);
+	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_STANDARD);
 
 	/* Get the "died from" information (i.e. "a kobold") */
-	monster_desc(ddesc, sizeof(ddesc), m_ptr, MDESC_SHOW | MDESC_IND2);
+	monster_desc(ddesc, sizeof(ddesc), m_ptr, MDESC_SHOW | MDESC_IND_VIS);
 
 	/* Assume no blink */
 	blinked = FALSE;
@@ -2716,7 +2622,7 @@ static void process_monster(struct cave *c, struct monster *m_ptr)
 	char m_name[80];
 
 	/* Get the monster name */
-	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_CAPITAL);
+	monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_CAPITAL | MDESC_IND_HID);
 
 	/* Handle "sleep" */
 	if (m_ptr->m_timed[MON_TMD_SLEEP]) {
@@ -2971,11 +2877,10 @@ static void process_monster(struct cave *c, struct monster *m_ptr)
 
 				/* Note changes to viewable region */
 				if (player_has_los_bold(ny, nx)) do_view = TRUE;
+			}
 
 			/* Handle doors and secret doors */
-			} else if (cave_iscloseddoor(cave, ny, nx)
-			        || cave_issecretdoor(cave, ny, nx)) {
-
+			else if (cave_iscloseddoor(cave, ny, nx) || cave_issecretdoor(cave, ny, nx)) {
 				/* Take a turn */
 				do_turn = TRUE;
 
@@ -2985,54 +2890,50 @@ static void process_monster(struct cave *c, struct monster *m_ptr)
 					rf_on(l_ptr->flags, RF_BASH_DOOR);
 				}
 
-				/* Creature can open doors. */
-				if (rf_has(m_ptr->race->flags, RF_OPEN_DOOR)) {
-					if (cave_iscloseddoor(cave, ny, nx) || cave_issecretdoor(cave, ny, nx)) {
-						cave_open_door(c, ny, nx);
-					} else if (cave_islockeddoor(cave, ny, nx)) {
+				/* Creature can open or bash doors */
+				if (rf_has(m_ptr->race->flags, RF_OPEN_DOOR) || rf_has(m_ptr->race->flags, RF_BASH_DOOR)) {
+					bool may_bash = ((rf_has(m_ptr->race->flags, RF_BASH_DOOR) && one_in_(2))? TRUE: FALSE);
+
+					/* Stuck door -- try to unlock it */
+					if (cave_islockeddoor(cave, ny, nx)) {
 						int k = cave_door_power(cave, ny, nx);
 
-						/* Try to unlock it */
 						if (randint0(m_ptr->hp / 10) > k) {
 							/* Print a message */
-							if (m_ptr->ml)
-								msg("%s fiddles with the lock.", m_name);
-							else
-								msg("Something fiddles with a lock.");
+							/* XXX This can probably be consolidated, since monster_desc checks m_ptr->ml */
+							if (m_ptr->ml) {
+								if (may_bash)
+									msg("%s slams against the door.", m_name);
+								else
+									msg("%s fiddles with the lock.", m_name);
+							} else {
+								if (may_bash)
+									msg("Something slams against a door.");
+								else
+									msg("Something fiddles with a lock.");
+							}
 
 							/* Reduce the power of the door by one */
 							cave_set_feat(c, ny, nx, cave->feat[ny][nx] - 1);
-
-							/* Handle viewable doors */
-							if (player_has_los_bold(ny, nx))
-								do_view = TRUE;
 						}
 					}
-				}
 
-				/* Stuck doors -- attempt to bash them down if allowed */
-				else if (rf_has(m_ptr->race->flags, RF_BASH_DOOR)) {
-					int k = cave_door_power(cave, ny, nx);
+					/* Closed or secret door -- open or bash if allowed */
+					else {
+						if (may_bash) {
+							cave_smash_door(c, ny, nx);
+							msg("You hear a door burst open!");
 
-					/* Print a message */
-					if (m_ptr->ml)
-						msg("%s slams against the door.", m_name);
-					else
-						msg("Something slams against a door.");
+							disturb(p_ptr, 0, 0);
 
-					/* Attempt to bash */
-					if (randint0(m_ptr->hp / 10) > k && one_in_(2)) {
-						cave_smash_door(c, ny, nx);
-						msg("You hear a door burst open!");
+							/* Fall into doorway */
+							do_move = TRUE;
+						} else
+							cave_open_door(c, ny, nx);
 
 						/* Handle viewable doors */
 						if (player_has_los_bold(ny, nx))
 							do_view = TRUE;
-
-						disturb(p_ptr, 0, 0);
-
-						/* Fall into doorway */
-						do_move = TRUE;
 					}
 				}
 			}
@@ -3124,11 +3025,16 @@ static void process_monster(struct cave *c, struct monster *m_ptr)
 					/* Get the names of the monsters involved */
 					char m1_name[80];
 					char n_name[80];
-					monster_desc(m1_name, sizeof(m1_name), m_ptr, MDESC_IND1);
-					monster_desc(n_name, sizeof(n_name), n_ptr, MDESC_IND1);
+					monster_desc(m1_name, sizeof(m1_name), m_ptr, MDESC_IND_HID);
+					monster_desc(n_name, sizeof(n_name), n_ptr, MDESC_IND_HID);
+					my_strcap(m1_name);
 
 					/* Allow movement */
 					do_move = TRUE;
+
+					/* Reveal mimics */
+					if (is_mimicking(n_ptr))
+						become_aware(n_ptr);
 
 					/* Monster ate another monster */
 					if (kill_ok) {
@@ -3202,7 +3108,7 @@ static void process_monster(struct cave *c, struct monster *m_ptr)
 								ODESC_PREFIX | ODESC_FULL);
 
 					/* Get the monster name */
-					monster_desc(m1_name, sizeof(m1_name), m_ptr, MDESC_IND1);
+					monster_desc(m1_name, sizeof(m1_name), m_ptr, MDESC_IND_HID | MDESC_CAPITAL);
 
 					/* React to objects that hurt the monster */
 					react_to_slay(obj_flags, mon_flags);
@@ -3260,13 +3166,6 @@ static void process_monster(struct cave *c, struct monster *m_ptr)
 		/* Stop when done */
 		if (do_turn) break;
 	}
-
-   
-	/* If we haven't done anything, try casting a spell again */
-    /* Another birth_ai_smart option */
-	if (FALSE && !do_turn && !do_move)
-		/* Cast spell */
-		if (make_attack_spell(m_ptr)) return;
 
 	if (rf_has(m_ptr->race->flags, RF_HAS_LIGHT))
 		do_view = TRUE;

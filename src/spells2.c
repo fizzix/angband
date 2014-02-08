@@ -306,10 +306,10 @@ void identify_pack(void)
 		if (object_is_known(o_ptr)) continue;
 
 		/* Identify it */
-		do_ident_item(i, o_ptr, TRUE);
+		do_ident_item(o_ptr, TRUE);
 
-		/* repeat with same slot */
-		i--;
+		/* Reset loop in case the pack reordered. */
+		i = 0;
 	}
 }
 
@@ -501,8 +501,8 @@ void map_area(void)
 	/* Drag the co-ordinates into the dungeon */
 	if (y1 < 0) y1 = 0;
 	if (x1 < 0) x1 = 0;
-	if (y2 > DUNGEON_HGT - 1) y2 = DUNGEON_HGT - 1;
-	if (x2 > DUNGEON_WID - 1) x2 = DUNGEON_WID - 1;
+	if (y2 > cave->height - 1) y2 = cave->height - 1;
+	if (x2 > cave->width - 1) x2 = cave->width - 1;
 
 	/* Scan the dungeon */
 	for (y = y1; y < y2; y++)
@@ -1197,22 +1197,6 @@ static bool item_tester_hook_armour(const object_type *o_ptr)
  */
 static bool item_tester_unknown(const object_type *o_ptr)
 {
-	/* A hack for a hack - Disable this for the 3.1.2 release */
-	if (FALSE && object_is_not_known_consistently(o_ptr))
-	{
-		/*
-		 * This next hack is pretty terrible, but people playing
-		 * the nightlies will really appreciate not having to reidentify
-		 * every time a new IDENT_ flag is added.  It should be
-		 * removed when the codebase is stable.
-		 */
-		object_type *i_ptr = (object_type *) o_ptr;
-		if (!object_check_for_ident(i_ptr))
-			return TRUE;
-		else
-			return FALSE;
-	}
-
 	return object_is_known(o_ptr) ? FALSE : TRUE;
 }
 
@@ -1490,8 +1474,7 @@ bool ident_spell(void)
 
 
 	/* Identify the object */
-	do_ident_item(item, o_ptr, TRUE);
-
+	do_ident_item(o_ptr, TRUE);
 
 	/* Something happened */
 	return (TRUE);
@@ -1532,7 +1515,7 @@ bool mass_identify(void)
         if (!player_can_see_bold(y, x)) continue;
         
         /* Identify the item */
-        do_ident_item(-1, o_ptr, FALSE);
+        do_ident_item(o_ptr, FALSE);
         
         /* Notify for artifacts */
         if (o_ptr->artifact){
@@ -1544,6 +1527,28 @@ bool mass_identify(void)
     return(TRUE);
 }
 
+/**
+ * Return TRUE if there are any objects available to identify (whether on floor or in inventory/equip.
+ */
+bool spell_identify_unknown_available(void)
+{
+	int floor_list[MAX_FLOOR_STACK];
+	int floor_num;
+	int i;
+	bool unidentified_inventory = FALSE;
+
+	item_tester_hook = item_tester_unknown;
+	floor_num = scan_floor(floor_list, N_ELEMENTS(floor_list), p_ptr->py, p_ptr->px, 0x0B);
+
+	for (i = 0; i < ALL_INVEN_TOTAL; i++) {
+		if (get_item_okay(i)) {
+			unidentified_inventory = TRUE;
+			break;
+		}
+	}
+
+	return unidentified_inventory || floor_num > 0;
+}
 
 /*
  * Hook for "get_item()".  Determine if something is rechargable.
@@ -1934,7 +1939,7 @@ bool probing(void)
 
 			/* Get "the monster" or "something" */
 			monster_desc(m_name, sizeof(m_name), m_ptr,
-					MDESC_IND1 | MDESC_CAPITAL);
+					MDESC_IND_HID | MDESC_CAPITAL);
 
 			/* Describe the monster */
 			msg("%s has %d hit points.", m_name, m_ptr->hp);
@@ -2294,7 +2299,7 @@ void earthquake(int cy, int cx, int r)
 					}
 
 					/* Describe the monster */
-					monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_CAPITAL);
+					monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_STANDARD);
 
 					/* Scream in pain */
 					msg("%s wails out in pain!", m_name);
@@ -3226,24 +3231,20 @@ void ring_of_power(int dir)
 
 /*
  * Identify an item.
- *
- * `item` is used to print the slot occupied by an object in equip/inven.
- * Any negative value assigned to "item" can be used for specifying an object
- * on the floor.
  */
-void do_ident_item(int item, object_type *o_ptr, bool show_message)
+void do_ident_item(object_type *o_ptr, bool show_message)
 {
 	char o_name[80];
 
 	u32b msg_type = 0;
-	int i;
+	int i, index;
 	bool bad = TRUE;
+	object_type *original = ZNEW(object_type);
 
-	/* Identify it */
+    /* Identify and apply autoinscriptions. We use o_ptr here since it points to the inventory
+     * slot that the real object is in. o_ptr does NOT point to the object data itself. */
 	object_flavor_aware(o_ptr);
 	object_notice_everything(o_ptr);
-
-	/* Apply an autoinscription, if necessary */
 	apply_autoinscription(o_ptr);
 
 	/* Set squelch flag */
@@ -3252,52 +3253,63 @@ void do_ident_item(int item, object_type *o_ptr, bool show_message)
 	/* Recalculate bonuses */
 	p_ptr->update |= (PU_BONUS);
 
-	/* Combine / Reorder the pack (later) */
-	p_ptr->notice |= (PN_COMBINE | PN_REORDER | PN_SORT_QUIVER);
-
 	/* Window stuff */
 	p_ptr->redraw |= (PR_INVEN | PR_EQUIP);
 
+    /* Create a copy of the object for later reference, since o_ptr will remain the same after
+     * combinging and reordering. */
+    object_copy(original, o_ptr);
+
+    /* Force inventory cleanup so that we can display updated slot information in the message. */
+	combine_pack();
+	reorder_pack();
+	sort_quiver();
+
 	/* Description */
-	object_desc(o_name, sizeof(o_name), o_ptr, ODESC_PREFIX | ODESC_FULL);
+	object_desc(o_name, sizeof(o_name), original, ODESC_PREFIX | ODESC_FULL);
     
     /* Log artifacts to the history list. */
-	if (o_ptr->artifact)
+	if (original->artifact)
         history_add_artifact(o_ptr->artifact, TRUE, TRUE);
+		
+	/* Get the index of the inventory slot that our real original object is in. */
+	index = inventory_index_matching_object(original);
+	FREE(original);
 
     /* Don't show a message */
     if (!show_message) return;
-    
+
 	/* Determine the message type. */
 	/* CC: we need to think more carefully about how we define "bad" with
 	 * multiple pvals - currently using "all nonzero pvals < 0" */
-	for (i = 0; i < o_ptr->num_pvals; i++)
-		if (o_ptr->pval[i] > 0)
+	for (i = 0; i < original->num_pvals; i++)
+		if (original->pval[i] > 0)
 			bad = FALSE;
 
 	if (bad)
 		msg_type = MSG_IDENT_BAD;
-	else if (o_ptr->artifact)
+	else if (original->artifact)
 		msg_type = MSG_IDENT_ART;
-	else if (o_ptr->ego)
+	else if (original->ego)
 		msg_type = MSG_IDENT_EGO;
 	else
 		msg_type = MSG_GENERIC;
 
+
 	/* Describe */
-	if (item >= INVEN_WIELD)
+	if (index >= INVEN_WIELD)
 	{
 		/* Format and capitalise */
 		char *msg = format("%s: %s (%c).",
-			  describe_use(item), o_name, index_to_label(item));
+			  describe_use(index), o_name, index_to_label(index));
 		my_strcap(msg);
 
 		msgt(msg_type, msg);
 	}
-	else if (item >= 0)
+	else if (index >= 0)
 	{
 		msgt(msg_type, "In your pack: %s (%c).",
-			  o_name, index_to_label(item));
+			  o_name, index_to_label(index));
 	}
 	else
 	{

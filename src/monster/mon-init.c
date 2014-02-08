@@ -99,7 +99,7 @@ static enum parser_error parse_rb_f(struct parser *p) {
 
 const char *r_info_spell_flags[] =
 {
-	#define RSF(a, b, c, d, e, f, g, h, i, j, k, l, m) #a,
+	#define RSF(a, b, c, d, e, f, g, h, i, j, k, l, m, n) #a,
 	#include "monster/list-mon-spells.h"
 	#undef RSF
 	NULL
@@ -543,12 +543,32 @@ static enum parser_error parse_r_mimic(struct parser *p) {
 	return PARSE_ERROR_NONE;
 }
 
+static enum parser_error parse_r_plural(struct parser *p)
+{
+	struct monster_race *r = parser_priv(p);
+
+	if (r == NULL)
+		return PARSE_ERROR_MISSING_RECORD_HEADER;
+
+	if (parser_hasval(p, "plural")) {
+		const char *plural = parser_getstr(p, "plural");
+
+		if (strlen(plural) > 0)
+			r->plural = string_make(plural);
+		else
+			r->plural = NULL;
+	}
+
+	return PARSE_ERROR_NONE;
+}
+
 struct parser *init_parse_r(void) {
 	struct parser *p = parser_new();
 	parser_setpriv(p, NULL);
 
 	parser_reg(p, "V sym version", ignored);
 	parser_reg(p, "N uint index str name", parse_r_n);
+	parser_reg(p, "plural ?str plural", parse_r_plural);
 	parser_reg(p, "T sym base", parse_r_t);
 	parser_reg(p, "G char glyph", parse_r_g);
 	parser_reg(p, "C sym color", parse_r_c);
@@ -631,35 +651,36 @@ static void cleanup_r(void)
 
 	for (ridx = 0; ridx < z_info->r_max; ridx++) {
 		struct monster_race *r = &r_info[ridx];
-		struct monster_drop *d, *dn;
-		struct monster_friends *f, *fn;
-		struct monster_friends_base *fb, *fbn;
-		struct monster_mimic *m, *mn;
+		struct monster_drop *d;
+		struct monster_friends *f;
+		struct monster_friends_base *fb;
+		struct monster_mimic *m;
 
 		d = r->drops;
 		while (d) {
-			dn = d->next;
+			struct monster_drop *dn = d->next;
 			mem_free(d);
 			d = dn;
 		}
 		f = r->friends;
 		while (f) {
-			fn = f->next;
+			struct monster_friends *fn = f->next;
 			mem_free(f);
 			f = fn;
 		}
-		while (fb) {
 		fb = r->friends_base;
-			fbn = fb->next;
+		while (fb) {
+			struct monster_friends_base *fbn = fb->next;
 			mem_free(fb);
 			fb = fbn;
 		}		
 		m = r->mimic_kinds;
 		while (m) {
-			mn = m->next;
+			struct monster_mimic *mn = m->next;
 			mem_free(m);
 			m = mn;
 		}
+		string_free(r->plural);
 		string_free(r->text);
 		string_free(r->name);
 	}

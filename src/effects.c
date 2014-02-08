@@ -2,7 +2,7 @@
  * File: effects.c
  * Purpose: Big switch statement for every effect in the game
  *
- * Copyright (c) 2007 Andrew Sidwell
+ * Copyright (c) 2007 Andi Sidwell
  *
  * This work is free software; you can redistribute it and/or modify it
  * under the terms of either:
@@ -19,6 +19,7 @@
 #include "angband.h"
 #include "cave.h"
 #include "effects.h"
+#include "dungeon.h"
 #include "monster/mon-spell.h"
 #include "monster/mon-util.h"
 #include "trap.h"
@@ -257,7 +258,7 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 				player_inc_timed(p_ptr, TMD_OPP_CONF, 12 + damroll(6, 10), TRUE, TRUE))
 			    	*ident = TRUE;
 
-			if (*ident) msg("Your feel your head clear.");
+			if (*ident) msg("You feel your head clear.");
 			return TRUE;
 		}
 
@@ -397,7 +398,7 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 			{
 				p_ptr->csp = p_ptr->msp;
 				p_ptr->csp_frac = 0;
-				msg("Your feel your head clear.");
+				msg("You feel your head clear.");
 				p_ptr->redraw |= (PR_MANA);
 				*ident = TRUE;
 			}
@@ -1582,7 +1583,7 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 				p_ptr->csp = p_ptr->msp;
 				p_ptr->csp_frac = 0;
 				*ident = TRUE;
-				msg("Your feel your head clear.");
+				msg("You feel your head clear.");
 				p_ptr->redraw |= (PR_MANA);
 			}
 			return TRUE;
@@ -1709,7 +1710,7 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 			msg("That tastes great!  A fine vintage.");
 			player_set_timed(p_ptr, TMD_BOLD, rand_spread(100, 20), TRUE);
 			*ident = TRUE;
-			break;
+			return TRUE;
 		}
 
 		case EF_SHROOM_EMERGENCY:
@@ -1744,7 +1745,7 @@ bool effect_do(effect_type effect, bool *ident, bool aware, int dir, int beam,
 			{
 				p_ptr->csp = p_ptr->msp;
 				p_ptr->csp_frac = 0;
-				msg("Your feel your head clear.");
+				msg("You feel your head clear.");
 				p_ptr->redraw |= (PR_MANA);
 				*ident = TRUE;
 			}

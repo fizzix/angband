@@ -87,10 +87,6 @@
 
 
 
-# Version stamp (required)
-
-V:3.4.0
-
 
 
 ##### Non-kind (contains the "pile" picture) #####
@@ -106,7 +102,7 @@ G:&:w
 # Remove post 3.5
 N:1:& Iron Spike~
 G:~:W
-I:5:0
+I:39:44
 W:1:0:2:1
 M:100:6d7
 P:0:1d1:0:0:0
@@ -227,7 +223,7 @@ N:16:Second Sight
 G:,:d
 I:80:6
 W:0:0:1:200
-A:10:1 to 100
+A:10:5 to 100
 M:70:1d4
 F:EASY_KNOW
 E:TMD_ESP
@@ -237,7 +233,7 @@ N:17:Fast Recovery
 G:,:d
 I:80:7
 W:0:0:1:200
-A:10:1 to 40
+A:10:5 to 40
 M:70:1d4
 F:EASY_KNOW
 E:CURE_BODY
@@ -247,8 +243,8 @@ N:18:Vigor
 G:,:d
 I:80:8
 W:0:0:1:200
-A:10:1 to 100
-M:10:1d3
+A:25:20 to 100
+M:13:1d3
 F:EASY_KNOW
 E:RESTORE_ALL
 L:500
@@ -257,7 +253,7 @@ N:19:Clear Mind
 G:,:d
 I:80:9
 W:0:0:1:200
-A:10:1 to 40
+A:10:5 to 40
 M:70:1d4
 F:EASY_KNOW
 E:CURE_MIND
@@ -267,7 +263,7 @@ N:20:Emergency
 G:,:d
 I:80:10
 W:0:0:1:60
-A:10:1 to 100
+A:10:5 to 100
 M:70:1d4
 F:EASY_KNOW
 E:SHROOM_EMERGENCY
@@ -277,7 +273,7 @@ N:21:Terror
 G:,:d
 I:80:11
 W:0:0:1:60
-A:10:1 to 40
+A:10:5 to 40
 M:70:1d4
 F:EASY_KNOW
 E:SHROOM_TERROR
@@ -287,7 +283,7 @@ N:22:Stoneskin
 G:,:d
 I:80:12
 W:0:0:1:60
-A:10:1 to 40
+A:10:10 to 40
 M:70:1d4
 F:EASY_KNOW
 E:SHROOM_STONE
@@ -298,7 +294,7 @@ N:23:Turbulence
 G:,:d
 I:80:13
 W:0:0:1:60
-#A:10:1 to 100
+#A:10:5 to 100
 M:70:1d4
 F:EASY_KNOW
 #E:SHROOM_TURB
@@ -308,7 +304,7 @@ N:24:Debility
 G:,:d
 I:80:14
 W:0:0:1:20
-A:10:1 to 40
+A:10:10 to 40
 M:70:1d4
 F:EASY_KNOW
 E:SHROOM_DEBILITY
@@ -318,7 +314,7 @@ N:25:Sprinting
 G:,:d
 I:80:15
 W:0:0:1:100
-A:1:10 to 100
+A:1:15 to 100
 M:70:1d4
 F:EASY_KNOW
 E:SHROOM_SPRINTING
@@ -328,7 +324,7 @@ N:26:Purging
 G:,:d
 I:80:16
 W:0:0:1:60
-A:1:10 to 100
+A:1:15 to 100
 M:70:1d4
 F:EASY_KNOW
 E:SHROOM_PURGING
@@ -1990,7 +1986,7 @@ N:302:Curse Weapon
 G:?:w
 I:70:41
 W:50:0:5:0
-A:0:50 to 100
+#A:10:50 to 100
 M:70:1d3
 F:EASY_KNOW
 E:CURSE_WEAPON
@@ -1999,7 +1995,7 @@ N:303:Curse Armour
 G:?:w
 I:70:42
 W:50:0:5:0
-A:0:50 to 100
+#A:10:50 to 100
 M:70:1d3
 F:EASY_KNOW
 E:CURSE_ARMOR
@@ -3521,70 +3517,6 @@ W:0:0:250:0
 
 
 
-##### Junk #####
-
-N:490:& Empty Bottle~
-G:!:w
-I:2:1
-W:0:0:2:0
-F:EASY_KNOW
-
-N:491:& Shard~ of Pottery
-G:~:r
-I:3:3
-W:0:0:5:0
-F:EASY_KNOW
-
-N:492:& Broken Stick~
-G:~:r
-I:3:6
-W:0:0:3:0
-F:EASY_KNOW
-
-N:493:& Broken Skull~
-G:~:w
-I:1:1
-W:0:0:2:0
-F:EASY_KNOW
-
-N:494:& Broken Bone~
-G:~:w
-I:1:2
-W:0:0:2:0
-F:EASY_KNOW
-
-N:495:& Canine Skeleton~
-G:~:w
-I:1:4
-W:1:0:10:0
-F:EASY_KNOW
-
-N:496:& Rodent Skeleton~
-G:~:w
-I:1:3
-W:1:0:10:0
-F:EASY_KNOW
-
-N:497:& Human Skeleton~
-G:~:w
-I:1:8
-W:5:0:60:0
-F:EASY_KNOW
-
-N:498:& Dwarf Skeleton~
-G:~:w
-I:1:7
-W:5:0:50:0
-F:EASY_KNOW
-
-N:499:& Elf Skeleton~
-G:~:w
-I:1:6
-W:5:0:40:0
-F:EASY_KNOW
-
-
-
 ##### Dragon Scale Mail #####
 
 N:500:Black Dragon Scale Mail~
@@ -3853,7 +3785,7 @@ F:INSTA_ART
 
 # The Amulet of Ingwe -- see artifact list
 
-N:554:& Amulet~
+N:554:& Pendant~
 G:":d
 I:40:51
 W:65:0:3:90000
@@ -3869,7 +3801,7 @@ F:INSTA_ART
 
 # The Ring of Barahir -- see artifact list
 
-N:556:& Ring~
+N:556:& Serpent Ring~
 G:=:d
 I:45:50
 W:50:0:2:65000
@@ -3885,7 +3817,7 @@ F:INSTA_ART
 
 # The Ring of Power 'Narya' -- see artifact list
 
-N:558:& Ring~
+N:558:& Ring of Power~
 G:=:d
 I:45:52
 W:70:0:2:100000
@@ -3893,7 +3825,7 @@ F:INSTA_ART
 
 # The Ring of Power 'Nenya' -- see artifact list
 
-N:559:& Ring~
+N:559:& Ring of Power~
 G:=:d
 I:45:53
 W:80:0:2:200000
@@ -3901,7 +3833,7 @@ F:INSTA_ART
 
 # The Ring of Power 'Vilya' -- see artifact list
 
-N:560:& Ring~
+N:560:& Ring of Power~
 G:=:d
 I:45:54
 W:90:0:2:300000
@@ -3909,7 +3841,7 @@ F:INSTA_ART
 
 # The Ring of Power 'The One Ring' -- see artifact list
 
-N:561:& Ring~
+N:561:& Ring of Power~
 G:=:y
 I:45:55
 W:100:0:2:5000000

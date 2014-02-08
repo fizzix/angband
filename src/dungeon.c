@@ -17,20 +17,23 @@
  */
 
 #include "angband.h"
+#include "birth.h"
 #include "borg/borg1.h"
-#include "button.h"
 #include "cave.h"
 #include "cmds.h"
 #include "dungeon.h"
 #include "files.h"
 #include "game-event.h"
 #include "generate.h"
+#include "grafmode.h"
 #include "init.h"
-#include "monster/monster.h"
+#include "monster/mon-list.h"
 #include "monster/mon-make.h"
 #include "monster/mon-spell.h"
 #include "monster/mon-util.h"
+#include "monster/monster.h"
 #include "object/tvalsval.h"
+#include "pathfind.h"
 #include "prefs.h"
 #include "savefile.h"
 #include "spells.h"
@@ -591,7 +594,7 @@ static void process_world(struct cave *c)
 		if (check_state(p_ptr, OF_REGEN, p_ptr->state.flags)) i += 30;
 
 		/* Slow digestion takes less food */
-		if (check_state(p_ptr, OF_SLOW_DIGEST, p_ptr->state.flags)) i = 1;
+		if (check_state(p_ptr, OF_SLOW_DIGEST, p_ptr->state.flags)) i /= 5;
 
 		/* Minimal digestion */
 		if (i < 1) i = 1;
@@ -641,7 +644,7 @@ static void process_world(struct cave *c)
 	/* Various things speed up regeneration */
 	if (check_state(p_ptr, OF_REGEN, p_ptr->state.flags))
 		regen_amount *= 2;
-	if (p_ptr->searching || p_ptr->resting)
+	if (p_ptr->searching || player_resting_can_regenerate(p_ptr))
 		regen_amount *= 2;
 
 	/* Some things slow it down */
@@ -667,7 +670,7 @@ static void process_world(struct cave *c)
 	/* Various things speed up regeneration */
 	if (check_state(p_ptr, OF_REGEN, p_ptr->state.flags))
 		regen_amount *= 2;
-	if (p_ptr->searching || p_ptr->resting)
+	if (p_ptr->searching || player_resting_can_regenerate(p_ptr))
 		regen_amount *= 2;
 
 	/* Some things slow it down */
@@ -912,6 +915,18 @@ static void process_player_aux(void)
 
 
 /*
+ * Place cursor on a monster or the player.
+ */
+static void place_cursor(void) {
+	if (OPT(show_target) && target_sighted()) {
+		s16b col, row;
+		target_get(&col, &row);
+		move_cursor_relative(row, col);
+	}
+}
+
+
+/*
  * Process the player
  *
  * Notice the annoying code to handle "pack overflow", which
@@ -935,53 +950,12 @@ static void process_player(void)
 
 	/*** Check for interrupts ***/
 
-	/* Complete resting */
-	if (p_ptr->resting < 0)
-	{
-		/* Basic resting */
-		if (p_ptr->resting == REST_ALL_POINTS)
-		{
-			/* Stop resting */
-			if ((p_ptr->chp == p_ptr->mhp) &&
-			    (p_ptr->csp == p_ptr->msp))
-			{
-				disturb(p_ptr, 0, 0);
-			}
-		}
-
-		/* Complete resting */
-		else if (p_ptr->resting == REST_COMPLETE)
-		{
-			/* Stop resting */
-			if ((p_ptr->chp == p_ptr->mhp) &&
-			    (p_ptr->csp == p_ptr->msp) &&
-			    !p_ptr->timed[TMD_BLIND] && !p_ptr->timed[TMD_CONFUSED] &&
-			    !p_ptr->timed[TMD_POISONED] && !p_ptr->timed[TMD_AFRAID] &&
-			    !p_ptr->timed[TMD_TERROR] &&
-			    !p_ptr->timed[TMD_STUN] && !p_ptr->timed[TMD_CUT] &&
-			    !p_ptr->timed[TMD_SLOW] && !p_ptr->timed[TMD_PARALYZED] &&
-			    !p_ptr->timed[TMD_IMAGE] && !p_ptr->word_recall)
-			{
-				disturb(p_ptr, 0, 0);
-			}
-		}
-		
-		/* Rest until HP or SP are filled */
-		else if (p_ptr->resting == REST_SOME_POINTS)
-		{
-			/* Stop resting */
-			if ((p_ptr->chp == p_ptr->mhp) ||
-			    (p_ptr->csp == p_ptr->msp))
-			{
-				disturb(p_ptr, 0, 0);
-			}
-		}
-	}
+	player_resting_complete_special(p_ptr);
 
 	/* Check for "player abort" */
 	if (p_ptr->running ||
 	    cmd_get_nrepeats() > 0 ||
-	    (p_ptr->resting && !(turn & 0x7F)))
+	    (player_is_resting(p_ptr) && !(turn & 0x7F)))
 	{
 		ui_event e;
 
@@ -1014,8 +988,9 @@ static void process_player(void)
 		if (p_ptr->redraw) redraw_stuff(p_ptr);
 
 
-		/* Place the cursor on the player */
-		move_cursor_relative(p_ptr->py, p_ptr->px);
+		/* Place cursor on player/target */
+		place_cursor();
+
 
 		/* Refresh (optional) */
 		Term_fresh();
@@ -1060,23 +1035,9 @@ static void process_player(void)
 		}
 
 		/* Resting */
-		else if (p_ptr->resting)
+		else if (player_is_resting(p_ptr))
 		{
-			/* Timed rest */
-			if (p_ptr->resting > 0)
-			{
-				/* Reduce rest count */
-				p_ptr->resting--;
-
-				/* Redraw the state */
-				p_ptr->redraw |= (PR_STATE);
-			}
-
-			/* Take a turn */
-			p_ptr->energy_use = 100;
-
-			/* Increment the resting counter */
-			p_ptr->resting_turn++;
+			player_resting_step_turn(p_ptr);
 		}
 
 		/* Running */
@@ -1105,8 +1066,8 @@ static void process_player(void)
 			/* Check monster recall */
 			process_player_aux();
 
-			/* Place the cursor on the player */
-			move_cursor_relative(p_ptr->py, p_ptr->px);
+			/* Place cursor on player/target */
+			place_cursor();
 
 			/* Get and process a command */
 			process_command(CMD_GAME, FALSE);
@@ -1299,6 +1260,11 @@ static void dungeon(struct cave *c)
 	/* Disturb */
 	disturb(p_ptr, 1, 0);
 
+	/*
+	 * Because changing levels doesn't take a turn and PR_MONLIST might not be
+	 * set for a few game turns, manually force an update on level change.
+	 */
+	monster_list_force_subwindow_update();
 
 	/* Track maximum player level */
 	if (p_ptr->max_lev < p_ptr->lev)
@@ -1383,16 +1349,6 @@ static void dungeon(struct cave *c)
 	/* Combine / Reorder the pack */
 	p_ptr->notice |= (PN_COMBINE | PN_REORDER | PN_SORT_QUIVER);
 
-	/* Make basic mouse buttons */
-	(void) button_add("[ESC]", ESCAPE);
-	(void) button_add("[Ret]", KC_ENTER);
-	(void) button_add("[Spc]", ' ');
-	(void) button_add("[Rpt]", 'n');
-	(void) button_add("[Std]", ',');
-
-	/* Redraw buttons */
-	p_ptr->redraw |= (PR_BUTTONS);
-
 	/* Notice stuff */
 	notice_stuff(p_ptr);
 
@@ -1463,8 +1419,8 @@ static void dungeon(struct cave *c)
 		/* Redraw stuff */
 		if (p_ptr->redraw) redraw_stuff(p_ptr);
 
-		/* Hack -- Highlight the player */
-		move_cursor_relative(p_ptr->py, p_ptr->px);
+		/* Place cursor on player/target */
+		place_cursor();
 
 		/* Handle "leaving" */
 		if (p_ptr->leaving) break;
@@ -1482,8 +1438,8 @@ static void dungeon(struct cave *c)
 		/* Redraw stuff */
 		if (p_ptr->redraw) redraw_stuff(p_ptr);
 
-		/* Hack -- Highlight the player */
-		move_cursor_relative(p_ptr->py, p_ptr->px);
+		/* Place cursor on player/target */
+		place_cursor();
 
 		/* Handle "leaving" */
 		if (p_ptr->leaving) break;
@@ -1501,8 +1457,8 @@ static void dungeon(struct cave *c)
 		/* Redraw stuff */
 		if (p_ptr->redraw) redraw_stuff(p_ptr);
 
-		/* Hack -- Highlight the player */
-		move_cursor_relative(p_ptr->py, p_ptr->px);
+		/* Place cursor on player/target */
+		place_cursor();
 
 		/* Handle "leaving" */
 		if (p_ptr->leaving) break;
@@ -1544,16 +1500,27 @@ static void dungeon(struct cave *c)
  */
 static void process_some_user_pref_files(void)
 {
+	bool found;
 	char buf[1024];
 
 	/* Process the "user.prf" file */
-	(void)process_pref_file("user.prf", TRUE, TRUE);
+	process_pref_file("user.prf", TRUE, TRUE);
 
 	/* Get the "PLAYER.prf" filename */
-	(void)strnfmt(buf, sizeof(buf), "%s.prf", player_safe_name(p_ptr), TRUE);
+	strnfmt(buf, sizeof(buf), "%s.prf", player_safe_name(p_ptr, TRUE));
 
-	/* Process the "PLAYER.prf" file */
-	(void)process_pref_file(buf, TRUE, TRUE);
+	/* Process the "PLAYER.prf" file, using the character name */
+	found = process_pref_file(buf, TRUE, TRUE);
+
+    /* Try pref file using savefile name if we fail using character name */
+    if (!found) {
+		int filename_index = path_filename_index(savefile);
+		char filename[128];
+
+		my_strcpy(filename, &savefile[filename_index], sizeof(filename));
+		strnfmt(buf, sizeof(buf), "%s.prf", filename);
+		process_pref_file(buf, TRUE, TRUE);
+    }
 }
 
 
@@ -1703,7 +1670,7 @@ void play_game(void)
 
 	/* Set the savefile name if it's not already set */
 	if (!savefile[0])
-		savefile_set_name(player_safe_name(p_ptr));
+		savefile_set_name(player_safe_name(p_ptr, TRUE));
 
 	/* Stop the player being quite so dead */
 	p_ptr->is_dead = FALSE;

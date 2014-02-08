@@ -22,6 +22,7 @@
 
 #include "birth.h"
 #include "buildid.h"
+#include "dungeon.h"
 #include "init.h"
 #include "monster/mon-make.h"
 #include "object/pval.h"
@@ -286,8 +287,8 @@ static void log_all_objects(int level)
 {
 	int x, y, i;
 
-	for (y = 1; y < DUNGEON_HGT - 1; y++) {
-		for (x = 1; x < DUNGEON_WID - 1; x++) {
+	for (y = 1; y < cave->height - 1; y++) {
+		for (x = 1; x < cave->width - 1; x++) {
 			object_type *o_ptr = get_first_object(y, x);
 
 			if (o_ptr) do {
@@ -801,8 +802,8 @@ static int stats_dump_lists(void)
 
 	struct mon_spell mon_spell_table[] =
 	{
-		#define RSF(a, b, c, d, e, f, g, h, i, j, k, l, m) \
-			{ RSF_##a, b, #a, d, e, f, g, h, i, j, k, l, m },
+		#define RSF(a, b, c, d, e, f, g, h, i, j, k, l, m, n) \
+			{ RSF_##a, b, #a, d, e, f, g, h, i, j, k, l, m, n },
 		#define RV(b, x, y, m) {b, x, y, m}
 		#include "monster/list-mon-spells.h"
 		#undef RV
@@ -1655,6 +1656,8 @@ static errr run_stats(void)
 	err = stats_write_db(run);
 	stats_db_close();
 	if (err) quit_fmt("Problems writing to database!  sqlite3 errno %d.", err);
+
+    mem_free(a_info_save);
 	free_stats_memory();
 	cleanup_angband();
 	if (!quiet) printf("Done!\n");
@@ -1756,7 +1759,7 @@ static errr term_wipe_stats(int x, int y, int n) {
 	return 0;
 }
 
-static errr term_text_stats(int x, int y, int n, byte a, const wchar_t *s) {
+static errr term_text_stats(int x, int y, int n, int a, const wchar_t *s) {
 	return 0;
 }
 

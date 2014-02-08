@@ -17,6 +17,7 @@
  */
 
 #include "angband.h"
+#include "attack.h"
 #include "cmds.h"
 #include "game-cmd.h"
 #include "object/object.h"
@@ -374,6 +375,7 @@ void process_command(cmd_context ctx, bool no_request)
 		int oldrepeats = cmd->nrepeats;
 		int idx = cmd_idx(cmd->command);
 		size_t i;
+		bool allow_5 = FALSE;
 
 		if (idx == -1) return;
 
@@ -392,6 +394,7 @@ void process_command(cmd_context ctx, bool no_request)
 				const char *type2 = is->type;
 
 				char prompt[1024], none[1024];
+				char capitalVerb[256];
 
 				/* Pluralise correctly or things look weird */
 				if (!type) {
@@ -399,11 +402,14 @@ void process_command(cmd_context ctx, bool no_request)
 					type2 = "items";
 				}
 
-				strnfmt(prompt, sizeof(prompt), "%s which %s?", verb, type);
-				strnfmt(none, sizeof(none), "You have no %s you can %s.",
-						type2, verb);
+				my_strcpy(capitalVerb, verb, sizeof(capitalVerb));
+				my_strcap(capitalVerb);
+
+				strnfmt(prompt, sizeof(prompt), "%s which %s?", capitalVerb, type);
+				strnfmt(none, sizeof(none), "You have no %s you can %s.", type2, verb);
 
 				item_tester_hook = is->filter;
+				if (cmd->command == CMD_USE_ANY) p_ptr->command_wrk = USE_INVEN;
 				if (!get_item(&item, prompt, none, cmd->command, is->mode))
 					return;
 
@@ -493,6 +499,9 @@ void process_command(cmd_context ctx, bool no_request)
 
 					if (n_visible_traps + n_trapped_chests == 1)
 						cmd_set_arg_direction(cmd, 0, coords_to_dir(y, x));
+
+					/* If there are chests to disarm, allow 5 as a direction */
+					allow_5 = (n_trapped_chests > 0);
 				}
 
 				goto get_dir;
@@ -511,7 +520,7 @@ void process_command(cmd_context ctx, bool no_request)
 						cmd->arg[0].direction == DIR_UNKNOWN)
 				{
 					int dir;
-					if (!get_rep_dir(&dir))
+					if (!get_rep_dir(&dir, allow_5))
 						return;
 
 					cmd_set_arg_direction(cmd, 0, dir);
@@ -521,6 +530,7 @@ void process_command(cmd_context ctx, bool no_request)
 			}
 
 			case CMD_DROP:
+			case CMD_STASH:
 			{
 				if (!cmd->arg_present[1])
 				{

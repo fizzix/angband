@@ -2,7 +2,7 @@
  * File: stats.c
  * Purpose: Statistics collection on dungeon generation
  *
- * Copyright (c) 2008 Andrew Sidwell
+ * Copyright (c) 2008 Andi Sidwell
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1978,8 +1978,8 @@ static void scan_for_objects(void)
 { 
 	int y, x;
 
-	for (y = 1; y < DUNGEON_HGT - 1; y++) {
-		for (x = 1; x < DUNGEON_WID - 1; x++) {
+	for (y = 1; y < cave->height - 1; y++) {
+		for (x = 1; x < cave->width - 1; x++) {
 			const object_type *o_ptr;
 
 			
@@ -2526,9 +2526,9 @@ void disconnect_stats(void)
 		calc_cave_distances();
 		
 		/*Cycle through the dungeon */
-		for (y = 1; y < DUNGEON_HGT - 1; y++){
+		for (y = 1; y < cave->height - 1; y++){
 		
-			for (x = 1; x < DUNGEON_WID - 1; x++){
+			for (x = 1; x < cave->width - 1; x++){
 			
 				/* don't care about walls */
 				if (cave_iswall(cave, y, x)) continue;

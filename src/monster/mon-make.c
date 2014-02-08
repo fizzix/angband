@@ -17,6 +17,7 @@
  */
 
 #include "angband.h"
+#include "alloc.h"
 #include "history.h"
 #include "init.h"
 #include "target.h"
@@ -25,6 +26,7 @@
 #include "monster/mon-timed.h"
 #include "monster/mon-util.h"
 #include "object/tvalsval.h"
+#include "quest.h"
 
 s16b num_repro;
 
@@ -547,6 +549,9 @@ monster_race *get_mon_num(int level)
 
 	/* Process probabilities */
 	for (i = 0; i < alloc_race_size; i++) {
+		time_t cur_time = time(NULL);
+		struct tm *date = localtime(&cur_time);
+
 		/* Monsters are sorted by depth */
 		if (table[i].level > level) break;
 
@@ -558,6 +563,11 @@ monster_race *get_mon_num(int level)
 
 		/* Get the chosen monster */
 		race = &r_info[table[i].index];
+
+		/* No seasonal monsters outside of Christmas */
+		if (rf_has(race->flags, RF_SEASONAL) && 
+				!(date->tm_mon == 11 && date->tm_mday >= 24 && date->tm_mday <= 26))
+			continue;
 
 		/* Only one copy of a a unique must be around at the same time */
 		if (rf_has(race->flags, RF_UNIQUE) && 
@@ -626,6 +636,40 @@ void player_place(struct cave *c, struct player *p, int y, int x)
 	c->m_idx[y][x] = -1;
 }
 
+/**
+ * Return the number of things dropped by a monster.
+ *
+ * \param race is the monster race.
+ * \param maximize should be set to FALSE for a random number, TRUE to find out the maximum count.
+ */
+int mon_create_drop_count(const struct monster_race *race, bool maximize)
+{
+	int number = 0;
+	static const int drop_4_max = 6;
+	static const int drop_3_max = 4;
+	static const int drop_2_max = 3;
+
+	if (maximize) {
+		if (rf_has(race->flags, RF_DROP_20)) number++;
+		if (rf_has(race->flags, RF_DROP_40)) number++;
+		if (rf_has(race->flags, RF_DROP_60)) number++;
+		if (rf_has(race->flags, RF_DROP_4)) number += drop_4_max;
+		if (rf_has(race->flags, RF_DROP_3)) number += drop_3_max;
+		if (rf_has(race->flags, RF_DROP_2)) number += drop_2_max;
+		if (rf_has(race->flags, RF_DROP_1)) number++;
+	}
+	else {
+		if (rf_has(race->flags, RF_DROP_20) && randint0(100) < 20) number++;
+		if (rf_has(race->flags, RF_DROP_40) && randint0(100) < 40) number++;
+		if (rf_has(race->flags, RF_DROP_60) && randint0(100) < 60) number++;
+		if (rf_has(race->flags, RF_DROP_4)) number += rand_range(2, drop_4_max);
+		if (rf_has(race->flags, RF_DROP_3)) number += rand_range(2, drop_3_max);
+		if (rf_has(race->flags, RF_DROP_2)) number += rand_range(1, drop_2_max);
+		if (rf_has(race->flags, RF_DROP_1)) number++;
+	}
+
+	return number;
+}
 
 /**
  * Creates a specific monster's drop, including any drops specified
@@ -654,13 +698,7 @@ static bool mon_create_drop(struct monster *m_ptr, byte origin)
 	item_ok = (!rf_has(m_ptr->race->flags, RF_ONLY_GOLD));
 
 	/* Determine how much we can drop */
-	if (rf_has(m_ptr->race->flags, RF_DROP_20) && randint0(100) < 20) number++;
-	if (rf_has(m_ptr->race->flags, RF_DROP_40) && randint0(100) < 40) number++;
-	if (rf_has(m_ptr->race->flags, RF_DROP_60) && randint0(100) < 60) number++;
-	if (rf_has(m_ptr->race->flags, RF_DROP_4)) number += rand_range(2, 6);
-	if (rf_has(m_ptr->race->flags, RF_DROP_3)) number += rand_range(2, 4);
-	if (rf_has(m_ptr->race->flags, RF_DROP_2)) number += rand_range(1, 3);
-	if (rf_has(m_ptr->race->flags, RF_DROP_1)) number++;
+	number = mon_create_drop_count(m_ptr->race, FALSE);
 
     /* Give added bonus for unique monters */
     monlevel = m_ptr->race->level;
@@ -871,8 +909,13 @@ static bool place_new_monster_one(int y, int x, monster_race *race,
 	assert(cave_in_bounds(cave, y, x));
 	assert(race && race->name);
 
-	/* Require empty space */
-	if (!cave_isempty(cave, y, x)) return (FALSE);
+	/* Not where monsters already are */
+	if (cave_monster_at(cave, y, x))
+		return FALSE;
+
+	/* Prevent monsters from being placed where they cannot walk, but allow other feature types */
+	if (!cave_is_monster_walkable(cave, y, x))
+		return FALSE;
 
 	/* No creation on glyph of warding */
 	if (cave_iswarded(cave, y, x)) return FALSE;
@@ -1061,6 +1104,7 @@ static bool place_monster_base_okay(monster_race *race)
 		monster_race *friends_race, int total, bool sleep, byte origin)
  {
 	int level_difference, extra_chance, nx, ny;
+	int j;
 	bool is_unique, success = TRUE;
 	
 	/* Find the difference between current dungeon depth and monster level */
@@ -1103,7 +1147,7 @@ static bool place_monster_base_okay(monster_race *race)
 	}
 	
 	/* Find a nearby place to put the other groups */
-	for (int j = 0; j < 50; j++){
+	for (j = 0; j < 50; j++){
 		scatter(&ny, &nx, y, x, GROUP_DISTANCE, FALSE);
 		if (cave_isopen(cave, ny, nx)) break;
 	}
@@ -1270,41 +1314,6 @@ bool pick_and_place_distant_monster(struct cave *c, struct loc loc, int dis,
 	return (FALSE);
 }
 
-/**
- * Creates magical stairs after finishing a quest monster.
- */
-static void build_quest_stairs(int y, int x)
-{
-	int ny, nx;
-
-	/* Stagger around */
-	while (!cave_valid_bold(y, x)) {
-		int d = 1;
-
-		/* Pick a location */
-		scatter(&ny, &nx, y, x, d, FALSE);
-
-		/* Stagger */
-		y = ny; x = nx;
-	}
-
-	/* Destroy any objects */
-	delete_object(y, x);
-
-	/* Explain the staircase */
-	msg("A magical staircase appears...");
-
-	/* Create stairs down */
-	/* XXX: fake depth = 0 to always produce downstairs */
-	cave_add_stairs(cave, y, x, 0);
-
-	/* Update the visuals */
-	p_ptr->update |= (PU_UPDATE_VIEW | PU_MONSTERS);
-
-	/* Fully update the flow */
-	p_ptr->update |= (PU_FORGET_FLOW | PU_UPDATE_FLOW);
-}
-
 
 /**
  * Handles the "death" of a monster.
@@ -1322,10 +1331,8 @@ static void build_quest_stairs(int y, int x)
  */
 void monster_death(struct monster *m_ptr, bool stats)
 {
-	int i;
 	int dump_item = 0;
 	int dump_gold = 0;
-	int total = 0;
 	s16b this_o_idx, next_o_idx = 0;
 
 	object_type *i_ptr;
@@ -1390,29 +1397,8 @@ void monster_death(struct monster *m_ptr, bool stats)
 	/* Update monster list window */
 	p_ptr->redraw |= PR_MONLIST;
 
-	/* Nothing else to do for non-"Quest Monsters" */
-	if (!rf_has(m_ptr->race->flags, RF_QUESTOR)) return;
-
-	/* Mark quests as complete */
-	for (i = 0; i < MAX_Q_IDX; i++)	{
-		/* Note completed quests */
-		if (q_list[i].level == m_ptr->race->level) q_list[i].level = 0;
-
-		/* Count incomplete quests */
-		if (q_list[i].level) total++;
-	}
-
-	/* Build magical stairs */
-	build_quest_stairs(y, x);
-
-	/* Nothing left, game over... */
-	if (total == 0) {
-		p_ptr->total_winner = TRUE;
-		p_ptr->redraw |= (PR_TITLE);
-		msg("*** CONGRATULATIONS ***");
-		msg("You have won the game!");
-		msg("You may retire (commit suicide) when you are ready.");
-	}
+	/* Check if we finished a quest */
+	quest_check(m_ptr);
 }
 
 
@@ -1468,7 +1454,7 @@ bool mon_take_hit(struct monster *m_ptr, int dam, bool *fear, const char *note)
 		}
 
 		/* Extract monster name */
-		monster_desc(m_name, sizeof(m_name), m_ptr, 0);
+		monster_desc(m_name, sizeof(m_name), m_ptr, MDESC_DEFAULT);
 
 		/* Death by Missile/Spell attack */
 		if (note) {
@@ -1521,8 +1507,7 @@ bool mon_take_hit(struct monster *m_ptr, int dam, bool *fear, const char *note)
 			 * This gets the correct name if we slay an invisible 
 			 * unique and don't have See Invisible.
 			 */
-			monster_desc(unique_name, sizeof(unique_name), m_ptr, 
-					MDESC_SHOW | MDESC_IND2);
+			monster_desc(unique_name, sizeof(unique_name), m_ptr, MDESC_DIED_FROM);
 
 			/* Log the slaying of a unique */
 			strnfmt(buf, sizeof(buf), "Killed %s", unique_name);

@@ -2,8 +2,8 @@
 
 #include "unit-test.h"
 #include "init.h"
-#include "player/types.h"
-#include "types.h"
+#include "player/player.h"
+
 
 int setup_tests(void **state) {
 	*state = init_parse_p();

@@ -1,5 +1,5 @@
 /*
- * File: cmd0.c
+ * File: cmds.c
  * Purpose: Deal with command processing.
  *
  * Copyright (c) 2010 Andi Sidwell
@@ -17,6 +17,7 @@
  */
 
 #include "angband.h"
+#include "attack.h"
 #include "cave.h"
 #include "cmds.h"
 #include "files.h"
@@ -62,16 +63,16 @@ static struct cmd_info cmd_item[] =
 	{ "Take off/unwield an item", { 't', 'T'}, CMD_TAKEOFF },
 	{ "Examine an item", { 'I' }, CMD_NULL, textui_obj_examine },
 	{ "Drop an item", { 'd' }, CMD_DROP },
-	{ "Fire your missile weapon", { 'f', 't' }, CMD_FIRE, NULL, player_can_fire_msg },
+	{ "Fire your missile weapon", { 'f', 't' }, CMD_FIRE, NULL, player_can_fire_prereq },
 	{ "Use a staff", { 'u', 'Z' }, CMD_USE_STAFF },
 	{ "Aim a wand", {'a', 'z'}, CMD_USE_WAND },
 	{ "Zap a rod", {'z', 'a'}, CMD_USE_ROD },
 	{ "Activate an object", {'A' }, CMD_ACTIVATE },
 	{ "Eat some food", { 'E' }, CMD_EAT },
 	{ "Quaff a potion", { 'q' }, CMD_QUAFF },
-	{ "Read a scroll", { 'r' }, CMD_READ_SCROLL, NULL, player_can_read_msg },
-	{ "Fuel your light source", { 'F' }, CMD_REFILL, NULL, player_can_refuel_msg },
-	{ "Use an item", { 'U' }, CMD_USE_ANY }
+	{ "Read a scroll", { 'r' }, CMD_READ_SCROLL, NULL, player_can_read_prereq },
+	{ "Fuel your light source", { 'F' }, CMD_REFILL, NULL, player_can_refuel_prereq },
+	{ "Use an item", { 'U', 'X' }, CMD_USE_ANY }
 };
 
 /* General actions */
@@ -107,9 +108,9 @@ static struct cmd_info cmd_item_manage[] =
 static struct cmd_info cmd_info[] =
 {
 	{ "Browse a book", { 'b', 'P' }, CMD_BROWSE_SPELL, textui_spell_browse },
-	{ "Gain new spells", { 'G' }, CMD_STUDY_BOOK, textui_obj_study, player_can_study_msg },
-	{ "Cast a spell", { 'm' }, CMD_CAST, textui_obj_cast, player_can_cast_msg },
-	{ "Cast a spell", { 'p' }, CMD_CAST, textui_obj_cast, player_can_cast_msg },
+	{ "Gain new spells", { 'G' }, CMD_STUDY_BOOK, textui_obj_study, player_can_study_prereq },
+	{ "Cast a spell", { 'm' }, CMD_CAST, textui_obj_cast, player_can_cast_prereq },
+	{ "Cast a spell", { 'p' }, CMD_CAST, textui_obj_cast, player_can_cast_prereq },
 	{ "Full dungeon map", { 'M' }, CMD_NULL, do_cmd_view_map },
 	{ "Toggle ignoring of items", { 'K', 'O' }, CMD_NULL, textui_cmd_toggle_ignore },
 	{ "Display visible item list", { ']' }, CMD_NULL, do_cmd_itemlist },
@@ -350,6 +351,16 @@ unsigned char cmd_lookup_key(cmd_code lookup_cmd, int mode)
 	return 0;
 }
 
+unsigned char cmd_lookup_key_unktrl(cmd_code lookup_cmd, int mode)
+{
+	unsigned char c = cmd_lookup_key(lookup_cmd, mode);
+
+	if (c < 0x20)
+		c = UN_KTRL(c);
+
+	return c;
+}
+
 cmd_code cmd_lookup(unsigned char key, int mode)
 {
 	assert(mode == KEYMAP_MODE_ROGUE || mode == KEYMAP_MODE_ORIG);
@@ -551,7 +562,7 @@ static int show_command_list(struct cmd_info cmd_list[], int size, int mx,
 			key[0] = cmd_list[i].key[mode];
 			key[1] = '\0';
 		}
-		strnfmt(cmd_name, 80, "%s (%s)",  cmd_list[i].desc, key[mode]);
+		strnfmt(cmd_name, 80, "%s (%s)",  cmd_list[i].desc, key);
 		menu_dynamic_add(m, cmd_name, i+1);
 	}
 
@@ -823,7 +834,7 @@ static void textui_process_click(ui_event e)
 /**
  * Check no currently worn items are stopping the action 'c'
  */
-static bool key_confirm_command(unsigned char c)
+bool key_confirm_command(unsigned char c)
 {
 	int i;
 
