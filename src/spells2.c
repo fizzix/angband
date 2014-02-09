@@ -1492,9 +1492,8 @@ bool mass_identify(void)
     
     /* Identify everything in the pack */
     identify_pack();
-    
     compact_objects(0);
-    
+	
     /* Go through the object list */
     for (item = 1; item <= o_cnt; item++){
    
@@ -1510,10 +1509,10 @@ bool mass_identify(void)
         /* Get location */
         y = o_ptr->iy;
         x = o_ptr->ix;
-        
+
         /* Ignore items that the player cannot see */
         if (!player_can_see_bold(y, x)) continue;
-        
+
         /* Identify the item */
         do_ident_item(o_ptr, FALSE);
         
@@ -3272,20 +3271,16 @@ void do_ident_item(object_type *o_ptr, bool show_message)
 	if (original->artifact)
         history_add_artifact(o_ptr->artifact, TRUE, TRUE);
 		
-	/* Get the index of the inventory slot that our real original object is in. */
-	index = inventory_index_matching_object(original);
-	FREE(original);
-
-    /* Don't show a message */
-    if (!show_message) return;
-
 	/* Determine the message type. */
 	/* CC: we need to think more carefully about how we define "bad" with
 	 * multiple pvals - currently using "all nonzero pvals < 0" */
 	for (i = 0; i < original->num_pvals; i++)
 		if (original->pval[i] > 0)
 			bad = FALSE;
-
+		
+	/* Get the index of the inventory slot that our real original object is in. */
+	index = inventory_index_matching_object(original);
+		
 	if (bad)
 		msg_type = MSG_IDENT_BAD;
 	else if (original->artifact)
@@ -3294,7 +3289,11 @@ void do_ident_item(object_type *o_ptr, bool show_message)
 		msg_type = MSG_IDENT_EGO;
 	else
 		msg_type = MSG_GENERIC;
-
+		
+	/* Don't show a message */
+    if (!show_message) return;
+	
+	FREE(original);
 
 	/* Describe */
 	if (index >= INVEN_WIELD)
