@@ -2414,10 +2414,12 @@ static bool project_m(int who, int r, int y, int x, int dam, int typ,
 			if (seen) obvious = TRUE;
 
 			/* Prepare to teleport */
-			do_dist = dam;
+			/* removed for competition */
+			/* do_dist = dam; */
+			m_note = MON_MSG_UNAFFECTED;
 
 			/* No "real" damage */
-			dam = 0;
+			dam = 1;
 			break;
 		}
 
