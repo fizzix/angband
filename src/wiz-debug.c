@@ -259,7 +259,7 @@ static void do_cmd_wiz_bamf(void)
 
 	/* Teleport to the target */
 	else
-		effect_simple(EF_TELEPORT_TO, "0", y, x, 0, NULL);
+		effect_simple(EF_TELEPORT_TO, "0", NULL, 2, y, x);
 }
 
 
@@ -1366,14 +1366,14 @@ static void do_cmd_wiz_cure_all(void)
 	(void)remove_all_curse();
 
 	/* Restore stats */
-	effect_simple(EF_RESTORE_STAT, "0", STAT_STR, 0, 0, NULL);
-	effect_simple(EF_RESTORE_STAT, "0", STAT_INT, 0, 0, NULL);
-	effect_simple(EF_RESTORE_STAT, "0", STAT_WIS, 0, 0, NULL);
-	effect_simple(EF_RESTORE_STAT, "0", STAT_DEX, 0, 0, NULL);
-	effect_simple(EF_RESTORE_STAT, "0", STAT_CON, 0, 0, NULL);
+	effect_simple(EF_RESTORE_STAT, "0", NULL, 1, STAT_STR);
+	effect_simple(EF_RESTORE_STAT, "0", NULL, 1, STAT_INT);
+	effect_simple(EF_RESTORE_STAT, "0", NULL, 1, STAT_WIS);
+	effect_simple(EF_RESTORE_STAT, "0", NULL, 1, STAT_DEX);
+	effect_simple(EF_RESTORE_STAT, "0", NULL, 1, STAT_CON);
 
 	/* Restore the level */
-	effect_simple(EF_RESTORE_EXP, "0", 1, 0, 0, NULL);
+	effect_simple(EF_RESTORE_EXP, "0", NULL, 1, 1);
 
 	/* Heal the player */
 	player->chp = player->mhp;
@@ -1528,7 +1528,7 @@ static void do_cmd_wiz_summon(int num)
 	int i;
 
 	for (i = 0; i < num; i++)
-		effect_simple(EF_SUMMON, "1", 0, 0, 0, NULL);
+		effect_simple(EF_SUMMON, "1", NULL, 0);
 }
 
 
@@ -1875,7 +1875,7 @@ void do_cmd_wiz_effect(void)
 	char name[80] = "";
 	char dice[80] = "0";
 	int index = -1;
-	int p1 = 0, p2 = 0, p3 = 0;
+	int p1 = 0, p2 = 0, p3 = 0, p4 = 0;
 	bool ident = false;
 
 	/* Avoid the prompt getting in the way */
@@ -1913,12 +1913,14 @@ void do_cmd_wiz_effect(void)
 
 	p2 = get_quantity("Enter second parameter: ", 100);
 	p3 = get_quantity("Enter third parameter: ", 100);
+	p4 = get_quantity("Enter fourth parameter: ", 100);
+  
 
 	/* Reload the screen */
 	screen_load();
 
 	if (index > EF_NONE && index < EF_MAX)
-		effect_simple(index, dice, p1, p2, p3, &ident);
+		effect_simple(index, dice, &ident, 4, p1, p2, p3, p4);
 	else
 		msg("No effect found.");
 
@@ -2001,13 +2003,13 @@ void get_debug_command(void)
 		/* Detect everything */
 		case 'd':
 		{
-			effect_simple(EF_DETECT_TRAPS, "22d40", 0, 0, 0, NULL);
-			effect_simple(EF_DETECT_DOORS, "22d40", 0, 0, 0, NULL);
-			effect_simple(EF_DETECT_STAIRS, "22d40", 0, 0, 0, NULL);
-			effect_simple(EF_DETECT_GOLD, "22d40", 0, 0, 0, NULL);
-			effect_simple(EF_DETECT_OBJECTS, "22d40", 0, 0, 0, NULL);
-			effect_simple(EF_DETECT_VISIBLE_MONSTERS, "22d40", 0, 0, 0, NULL);
-			effect_simple(EF_DETECT_INVISIBLE_MONSTERS, "22d40", 0, 0, 0, NULL);
+			effect_simple(EF_DETECT_TRAPS, "22d40", NULL, 0);
+			effect_simple(EF_DETECT_DOORS, "22d40", NULL, 0);
+			effect_simple(EF_DETECT_STAIRS, "22d40", NULL, 0);
+			effect_simple(EF_DETECT_GOLD, "22d40", NULL, 0);
+			effect_simple(EF_DETECT_OBJECTS, "22d40", NULL, 0);
+			effect_simple(EF_DETECT_VISIBLE_MONSTERS, "22d40", NULL, 0);
+			effect_simple(EF_DETECT_INVISIBLE_MONSTERS, "22d40", NULL, 0);
 			break;
 		}
 		
@@ -2073,14 +2075,14 @@ void get_debug_command(void)
 		/* Hit all monsters in LOS */
 		case 'H':
 		{
-			effect_simple(EF_PROJECT_LOS, "10000", GF_DISP_ALL, 0, 0, NULL);
+			effect_simple(EF_PROJECT_LOS, "10000", NULL, 1, GF_DISP_ALL);
 			break;
 		}
 
 		/* Identify */
 		case 'i':
 		{
-			effect_simple(EF_IDENTIFY, "0", 0, 0, 0, NULL);
+			effect_simple(EF_IDENTIFY, "0", NULL, 0);
 			break;
 		}
 
@@ -2108,7 +2110,7 @@ void get_debug_command(void)
 		/* Magic Mapping */
 		case 'm':
 		{
-			effect_simple(EF_MAP_AREA, "22d40", 0, 0, 0, NULL);
+			effect_simple(EF_MAP_AREA, "22d40", NULL, 0);
 			break;
 		}
 
@@ -2160,7 +2162,7 @@ void get_debug_command(void)
 		case 'p':
 		{
 			const char *near = "10";
-			effect_simple(EF_TELEPORT, near, 0, 1, 0, NULL);
+			effect_simple(EF_TELEPORT, near, NULL, 2, 0, 1);
 			break;
 		}
 
@@ -2254,7 +2256,7 @@ void get_debug_command(void)
 		case 't':
 		{
 			const char *far = "100";
-			effect_simple(EF_TELEPORT, far, 0, 1, 0, NULL);
+			effect_simple(EF_TELEPORT, far, NULL, 2, 0, 1);
 			break;
 		}
 
@@ -2273,9 +2275,9 @@ void get_debug_command(void)
 		/* Un-hide all monsters */
 		case 'u':
 		{
-			effect_simple(EF_DETECT_VISIBLE_MONSTERS, "500d500", 0, 0, 0, NULL);
-			effect_simple(EF_DETECT_INVISIBLE_MONSTERS, "500d500", 0, 0, 0,
-						  NULL);
+			effect_simple(EF_DETECT_VISIBLE_MONSTERS, "500d500", NULL, 0);
+			effect_simple(EF_DETECT_INVISIBLE_MONSTERS, "500d500", NULL, 0);
+						  
 			break;
 		}
 

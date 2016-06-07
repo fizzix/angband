@@ -441,7 +441,7 @@ void process_world(struct chunk *c)
 	if (player_of_has(player, OF_TELEPORT) && one_in_(50)) {
 		const char *forty = "40";
 		equip_notice_flag(player, OF_TELEPORT);
-		effect_simple(EF_TELEPORT, forty, 0, 1, 0, NULL);
+		effect_simple(EF_TELEPORT, forty, NULL, 2, 0, 1);
 		disturb(player, 0);
 	}
 
@@ -498,7 +498,7 @@ void process_world(struct chunk *c)
 			} else {
 				/* Otherwise do something disastrous */
 				msgt(MSG_TPLEVEL, "You are thrown back in an explosion!");
-				effect_simple(EF_DESTRUCTION, "0", 0, 5, 0, NULL);
+				effect_simple(EF_DESTRUCTION, "0", NULL, 2, 0, 5);
 			}		
 		}
 	}
@@ -608,7 +608,7 @@ void process_player(void)
 				!player->timed[TMD_PARALYZED] &&
 				!player->timed[TMD_TERROR] &&
 				!player->timed[TMD_AFRAID])
-				effect_simple(EF_DETECT_GOLD, "3d3", 1, 0, 0, NULL);
+				effect_simple(EF_DETECT_GOLD, "3d3", NULL, 1, 1);
 		}
 
 		/* Paralyzed or Knocked Out player gets no turn */

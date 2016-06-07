@@ -2847,18 +2847,20 @@ combat:0:1d1:0:0:0
 charges:6+d10
 power:3
 effect:BOLT_AWARE:OLD_SLOW
+param:0:0:2
 dice:20
 
 name:381:Confuse Monster
 graphics:-:d
 type:wand
-properties:5:10:500
+properties:5:11:500
 alloc:20:5 to 60
 combat:0:1d1:0:0:0
 charges:6+d12
 power:3
 effect:BOLT_AWARE:OLD_CONF
-dice:10
+param:0:0:2
+dice:12
 
 name:382:Sleep Monster
 graphics:-:d
@@ -2869,6 +2871,7 @@ combat:0:1d1:0:0:0
 charges:8+d15
 power:3
 effect:BOLT_AWARE:OLD_SLEEP
+param:0:0:1
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 
@@ -3153,6 +3156,7 @@ combat:0:1d2:0:0:0
 charges:6+d5
 power:10
 effect:PROJECT_LOS_AWARE:OLD_CONF
+param:0:0:2
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 
@@ -3165,6 +3169,7 @@ combat:0:1d2:0:0:0
 charges:6+d5
 power:7
 effect:PROJECT_LOS:OLD_SLOW
+param:0:0:2
 dice:20
 
 name:407:Sleep Monsters
@@ -3176,6 +3181,7 @@ combat:0:1d2:0:0:0
 charges:6+d5
 power:8
 effect:PROJECT_LOS_AWARE:OLD_SLEEP
+param:0:0:1
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 
@@ -3599,6 +3605,7 @@ alloc:20:30 to 100
 combat:0:1d1:0:0:0
 power:3
 effect:BOLT_AWARE:OLD_SLOW
+param:0:0:2
 dice:20
 time:20
 
@@ -3610,6 +3617,7 @@ alloc:20:30 to 100
 combat:0:1d1:0:0:0
 power:3
 effect:BOLT_AWARE:OLD_SLEEP
+param:0:0:1
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 time:18

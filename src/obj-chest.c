@@ -326,32 +326,32 @@ static void chest_trap(int y, int x, struct object *obj)
 	if (trap & (CHEST_LOSE_STR)) {
 		msg("A small needle has pricked you!");
 		take_hit(player, damroll(1, 4), "a poison needle");
-		effect_simple(EF_DRAIN_STAT, "0", STAT_STR, 0, 0, NULL);
+		effect_simple(EF_DRAIN_STAT, "0", NULL, 1, STAT_STR);
 	}
 
 	/* Lose constitution */
 	if (trap & (CHEST_LOSE_CON)) {
 		msg("A small needle has pricked you!");
 		take_hit(player, damroll(1, 4), "a poison needle");
-		effect_simple(EF_DRAIN_STAT, "0", STAT_CON, 0, 0, NULL);
+		effect_simple(EF_DRAIN_STAT, "0", NULL, 1, STAT_CON);
 	}
 
 	/* Poison */
 	if (trap & (CHEST_POISON)) {
 		msg("A puff of green gas surrounds you!");
-		effect_simple(EF_TIMED_INC, "10+1d20", TMD_POISONED, 0, 0, NULL);
+		effect_simple(EF_TIMED_INC, "10+1d20", NULL, 1, TMD_POISONED);
 	}
 
 	/* Paralyze */
 	if (trap & (CHEST_PARALYZE)) {
 		msg("A puff of yellow gas surrounds you!");
-		effect_simple(EF_TIMED_INC, "10+1d20", TMD_PARALYZED, 0, 0, NULL);
+		effect_simple(EF_TIMED_INC, "10+1d20", NULL, 1, TMD_PARALYZED);
 	}
 
 	/* Summon monsters */
 	if (trap & (CHEST_SUMMON)) {
 		msg("You are enveloped in a cloud of smoke!");
-		effect_simple(EF_SUMMON, "2+1d3", 0, 0, 0, NULL);
+		effect_simple(EF_SUMMON, "2+1d3", NULL, 0);
 	}
 
 	/* Explode */

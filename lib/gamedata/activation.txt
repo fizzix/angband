@@ -762,6 +762,7 @@ aim:0
 power:8
 msg:{name} glows deep blue...
 effect:TOUCH_AWARE:OLD_SLEEP
+param:0:0:1
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:puts to sleep the monsters around you
@@ -1060,6 +1061,7 @@ aim:1
 power:3
 msg:{name} glows in scintillating colours...
 effect:BOLT_AWARE:OLD_CONF
+param:0:0:2
 dice:20
 desc:confuses a target monster
 

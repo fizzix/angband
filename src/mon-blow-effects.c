@@ -147,7 +147,7 @@ static void melee_effect_stat(melee_effect_handler_context_t *context, int stat)
 		return;
 
 	/* Damage (stat) */
-	effect_simple(EF_DRAIN_STAT, "0", stat, 0, 0, &context->obvious);
+	effect_simple(EF_DRAIN_STAT, "0", &context->obvious, 1, stat);
 }
 
 /**
@@ -252,7 +252,7 @@ static void melee_effect_handler_DISENCHANT(melee_effect_handler_context_t *cont
 
 	/* Apply disenchantment if no resist */
 	if (!player_resists(context->p, ELEM_DISEN))
-		effect_simple(EF_DISENCHANT, "0", 0, 0, 0, &context->obvious);
+		effect_simple(EF_DISENCHANT, "0", &context->obvious, 0);
 
 	/* Learn about the player */
 	update_smart_learn(context->mon, context->p, 0, 0, ELEM_DISEN);
@@ -690,11 +690,11 @@ static void melee_effect_handler_LOSE_ALL(melee_effect_handler_context_t *contex
 		return;
 
 	/* Damage (stats) */
-	effect_simple(EF_DRAIN_STAT, "0", STAT_STR, 0, 0, &context->obvious);
-	effect_simple(EF_DRAIN_STAT, "0", STAT_DEX, 0, 0, &context->obvious);
-	effect_simple(EF_DRAIN_STAT, "0", STAT_CON, 0, 0, &context->obvious);
-	effect_simple(EF_DRAIN_STAT, "0", STAT_INT, 0, 0, &context->obvious);
-	effect_simple(EF_DRAIN_STAT, "0", STAT_WIS, 0, 0, &context->obvious);
+	effect_simple(EF_DRAIN_STAT, "0", &context->obvious, 1, STAT_STR);
+	effect_simple(EF_DRAIN_STAT, "0", &context->obvious, 1, STAT_DEX);
+	effect_simple(EF_DRAIN_STAT, "0", &context->obvious, 1, STAT_CON);
+	effect_simple(EF_DRAIN_STAT, "0", &context->obvious, 1, STAT_INT);
+	effect_simple(EF_DRAIN_STAT, "0", &context->obvious, 1, STAT_WIS);
 }
 
 /**
@@ -720,7 +720,7 @@ static void melee_effect_handler_SHATTER(melee_effect_handler_context_t *context
 		int px_old = context->p->px;
 		int py_old = context->p->py;
 
-		effect_simple(EF_EARTHQUAKE, "0", 0, 8, 0, NULL);
+		effect_simple(EF_EARTHQUAKE, "0", NULL, 2, 0, 8);
 
 		/* Stop the blows if the player is pushed away */
 		if ((px_old != context->p->px) ||

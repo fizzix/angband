@@ -1124,7 +1124,11 @@ static enum parser_error parse_object_param(struct parser *p) {
 	if (parser_hasval(p, "p3"))
 		effect->params[2] = parser_getint(p, "p3");
 
-	return PARSE_ERROR_NONE;
+	if (parser_hasval(p, "p4"))
+		effect->params[3] = parser_getint(p, "p4");
+
+
+return PARSE_ERROR_NONE;
 }
 
 
@@ -1309,7 +1313,7 @@ struct parser *init_parse_object(void) {
 	parser_reg(p, "flags str flags", parse_object_flags);
 	parser_reg(p, "power int power", parse_object_power);
 	parser_reg(p, "effect sym eff ?sym type ?int xtra", parse_object_effect);
-	parser_reg(p, "param int p2 ?int p3", parse_object_param);
+	parser_reg(p, "param int p2 ?int p3 ?int p4", parse_object_param);
 	parser_reg(p, "dice str dice", parse_object_dice);
 	parser_reg(p, "expr sym name sym base str expr", parse_object_expr);
 	parser_reg(p, "msg str text", parse_object_msg);
@@ -1451,7 +1455,10 @@ static enum parser_error parse_act_param(struct parser *p) {
 	if (parser_hasval(p, "p3"))
 		effect->params[2] = parser_getint(p, "p3");
 
-	return PARSE_ERROR_NONE;
+	if (parser_hasval(p, "p4"))
+		effect->params[3] = parser_getint(p, "p4");
+
+  return PARSE_ERROR_NONE;
 }
 
 
@@ -1552,7 +1559,7 @@ struct parser *init_parse_act(void) {
 	parser_reg(p, "aim uint aim", parse_act_aim);
 	parser_reg(p, "power uint power", parse_act_power);
 	parser_reg(p, "effect sym eff ?sym type ?int xtra", parse_act_effect);
-	parser_reg(p, "param int p2 ?int p3", parse_act_param);
+	parser_reg(p, "param int p2 ?int p3 ?int p4", parse_act_param);
 	parser_reg(p, "dice str dice", parse_act_dice);
 	parser_reg(p, "expr sym name sym base str expr", parse_act_expr);
 	parser_reg(p, "msg str msg", parse_act_msg);
@@ -3549,6 +3556,9 @@ static enum parser_error parse_class_param(struct parser *p) {
 	if (parser_hasval(p, "p3"))
 		effect->params[2] = parser_getint(p, "p3");
 
+	if (parser_hasval(p, "p4"))
+		effect->params[3] = parser_getint(p, "p4");
+
 	return PARSE_ERROR_NONE;
 }
 
@@ -3671,7 +3681,7 @@ struct parser *init_parse_class(void) {
 	parser_reg(p, "book sym tval sym sval uint spells uint realm", parse_class_book);
 	parser_reg(p, "spell sym name int level int mana int fail int exp", parse_class_spell);
 	parser_reg(p, "effect sym eff ?sym type ?int xtra", parse_class_effect);
-	parser_reg(p, "param int p2 ?int p3", parse_class_param);
+	parser_reg(p, "param int p2 ?int p3 ?int p4", parse_class_param);
 	parser_reg(p, "dice str dice", parse_class_dice);
 	parser_reg(p, "expr sym name sym base str expr", parse_class_expr);
 	parser_reg(p, "desc str desc", parse_class_desc);

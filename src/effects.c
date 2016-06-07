@@ -22,6 +22,7 @@
 #include "effects.h"
 #include "game-input.h"
 #include "generate.h"
+#include "h-basic.h"
 #include "init.h"
 #include "mon-desc.h"
 #include "mon-lore.h"
@@ -56,7 +57,7 @@ typedef struct effect_handler_context_s {
 	const int beam;
 	const int boost;
 	const random_value value;
-	const int p1, p2, p3;
+	const int p1, p2, p3, p4;
 	bool ident;
 } effect_handler_context_t;
 
@@ -111,23 +112,34 @@ static const char *desc_stat_neg[] =
 int effect_calculate_value(effect_handler_context_t *context, bool use_boost)
 {
 	int final = 0;
-
+		
 	if (context->value.base > 0 ||
 		(context->value.dice > 0 && context->value.sides > 0))
 		final = context->value.base +
 			damroll(context->value.dice, context->value.sides);
-
-	if (use_boost)
-		final *= (100 + context->boost) / 100;
+	
+	if (use_boost){
+		final *= (100 + context->boost);
+		final /= 100;
+	}
 
 	return final;
 }
 
+int effect_calculate_duration(int power, int duration_modifier)
+{
+	int duration = 0;
+
+	if (duration_modifier)
+		duration = power/duration_modifier;
+	
+	return duration;
+}
 
 /**
  * Apply the project() function in a direction, or at a target
  */
-static bool project_aimed(int typ, int dir, int dam, int flg,
+static bool project_aimed(int typ, int dir, int dam, int duration, int flg,
 						  const struct object *obj)
 {
 	int py = player->py;
@@ -153,13 +165,13 @@ static bool project_aimed(int typ, int dir, int dam, int flg,
 		target_get(&tx, &ty);
 
 	/* Aim at the target, do NOT explode */
-	return (project(source, 0, ty, tx, dam, typ, flg, 0, 0, obj));
+	return (project(source, 0, ty, tx, dam, typ, flg, 0, 0, duration, obj));
 }
 
 /**
  * Apply the project() function to grids the player is touching
  */
-static bool project_touch(int dam, int typ, bool aware,
+static bool project_touch(int dam, int duration, int typ, bool aware,
 						  const struct object *obj)
 {
 	int py = player->py;
@@ -167,7 +179,7 @@ static bool project_touch(int dam, int typ, bool aware,
 
 	int flg = PROJECT_GRID | PROJECT_KILL | PROJECT_HIDE | PROJECT_ITEM | PROJECT_THRU;
 	if (aware) flg |= PROJECT_AWARE;
-	return (project(-1, 1, py, px, dam, typ, flg, 0, 0, obj));
+	return (project(-1, 1, py, px, dam, typ, flg, 0, 0, duration, obj));
 }
 
 /**
@@ -390,12 +402,12 @@ bool effect_handler_TIMED_INC_NO_RES(effect_handler_context_t *context)
  */
 bool effect_handler_MON_TIMED_INC(effect_handler_context_t *context)
 {
-	int amount = effect_calculate_value(context, false);
+	int amount = effect_calculate_value(context, true);
 	struct monster *mon  = cave->mon_current > 0 ?
 		cave_monster(cave, cave->mon_current) : NULL;
 
 	if (mon) {
-		mon_inc_timed(mon, context->p1, amount, 0, false);
+		mon_inc_timed(mon, context->p1, amount, 10, 0, false);
 		context->ident = true;
 	}
 	return true;
@@ -2129,7 +2141,7 @@ bool effect_handler_PROJECT_LOS(effect_handler_context_t *context)
 	int i, x, y;
 	int dam = effect_calculate_value(context, context->p2 ? true : false);
 	int typ = context->p1;
-
+	int duration = effect_calculate_duration(dam, context->p4);
 	int flg = PROJECT_JUMP | PROJECT_KILL | PROJECT_HIDE;
 
 	/* Affect all (nearby) monsters */
@@ -2147,7 +2159,7 @@ bool effect_handler_PROJECT_LOS(effect_handler_context_t *context)
 		if (!square_isview(cave, y, x)) continue;
 
 		/* Jump directly to the target monster */
-		if (project(-1, 0, y, x, dam, typ, flg, 0, 0, context->obj))
+		if (project(-1, 0, y, x, dam, typ, flg, 0, 0, duration, context->obj))
 			context->ident = true;
 	}
 
@@ -2166,6 +2178,7 @@ bool effect_handler_PROJECT_LOS_AWARE(effect_handler_context_t *context)
 	int i, x, y;
 	int dam = effect_calculate_value(context, context->p2 ? true : false);
 	int typ = context->p1;
+	int duration = effect_calculate_duration(dam, context->p4);
 
 	int flg = PROJECT_JUMP | PROJECT_KILL | PROJECT_HIDE;
 
@@ -2186,7 +2199,7 @@ bool effect_handler_PROJECT_LOS_AWARE(effect_handler_context_t *context)
 		if (!square_isview(cave, y, x)) continue;
 
 		/* Jump directly to the target monster */
-		if (project(-1, 0, y, x, dam, typ, flg, 0, 0, context->obj))
+		if (project(-1, 0, y, x, dam, typ, flg, 0, 0, duration, context->obj))
 			context->ident = true;
 	}
 
@@ -2241,7 +2254,7 @@ bool effect_handler_AGGRAVATE(effect_handler_context_t *context)
 
 		/* Speed up monsters in line of sight */
 		if (square_isview(cave, mon->fy, mon->fx)) {
-			mon_inc_timed(mon, MON_TMD_FAST, 25, MON_TMD_FLG_NOTIFY, false);
+			mon_inc_timed(mon, MON_TMD_FAST, 25, 10, MON_TMD_FLG_NOTIFY, false);
 			if (is_mimicking(mon))
 				become_aware(mon);
 			context->ident = true;
@@ -3293,6 +3306,7 @@ bool effect_handler_LIGHT_AREA(effect_handler_context_t *context)
 	int px = player->px;
 	int dam = effect_calculate_value(context, false);
 	int rad = context->p2 + (context->p3 ? player->lev / context->p3 : 0);
+	int duration = effect_calculate_duration(dam, context->p4);
 
 	int flg = PROJECT_GRID | PROJECT_KILL;
 
@@ -3301,7 +3315,8 @@ bool effect_handler_LIGHT_AREA(effect_handler_context_t *context)
 		msg("You are surrounded by a white light.");
 
 	/* Hook into the "project()" function */
-	(void)project(-1, rad, py, px, dam, GF_LIGHT_WEAK, flg, 0, 0, context->obj);
+	(void)project(-1, rad, py, px, dam, GF_LIGHT_WEAK, flg, 0, 0, 
+                  duration, context->obj);
 
 	/* Light up the room */
 	light_room(py, px, true);
@@ -3323,6 +3338,7 @@ bool effect_handler_DARKEN_AREA(effect_handler_context_t *context)
 	int dam = effect_calculate_value(context, false);
 	int rad = context->p2;
 	int source = (cave->mon_current > 0) ? cave->mon_current : -1;
+	int duration = effect_calculate_duration(dam, context->p4);
 
 	int flg = PROJECT_GRID | PROJECT_KILL | PROJECT_PLAY;
 
@@ -3332,7 +3348,7 @@ bool effect_handler_DARKEN_AREA(effect_handler_context_t *context)
 
 	/* Hook into the "project()" function */
 	(void)project(source, rad, py, px, dam, GF_DARK_WEAK, flg, 0, 0,
-				  context->obj);
+				  duration, context->obj);
 
 	/* Darken the room */
 	light_room(py, px, false);
@@ -3359,6 +3375,7 @@ bool effect_handler_BALL(effect_handler_context_t *context)
 	int dam = effect_calculate_value(context, true);
 	int rad = context->p2 ? context->p2 : 2;
 	int source;
+	int duration = effect_calculate_duration(dam, context->p4);
 
 	int ty = py + ddy[context->dir];
 	int tx = px + ddx[context->dir];
@@ -3385,7 +3402,8 @@ bool effect_handler_BALL(effect_handler_context_t *context)
 	}
 
 	/* Aim at the target, explode */
-	if (project(source, rad, ty, tx, dam, context->p1, flg, 0, 0, context->obj))
+	if (project(source, rad, ty, tx, dam, context->p1, flg, 0, 0, 
+                duration, context->obj))
 		context->ident = true;
 
 	return true;
@@ -3404,6 +3422,7 @@ bool effect_handler_BREATH(effect_handler_context_t *context)
 	int dam = effect_calculate_value(context, false);
 	int type = context->p1;
 	int rad = context->p3;
+	int duration = effect_calculate_duration(dam, context->p4);
 	int source;
 
 	int ty = py + ddy[context->dir];
@@ -3460,7 +3479,7 @@ bool effect_handler_BREATH(effect_handler_context_t *context)
 
 	/* Breathe at the target */
 	if (project(source, rad, ty, tx, dam, type, flg, degrees_of_arc,
-				diameter_of_source, context->obj))
+				diameter_of_source, duration, context->obj))
 		context->ident = true;
 
 	return true;
@@ -3479,6 +3498,7 @@ bool effect_handler_SWARM(effect_handler_context_t *context)
 	int px = player->px;
 	int dam = effect_calculate_value(context, true);
 	int num = context->value.m_bonus;
+	int duration = effect_calculate_duration(dam, context->p4);
 
 	int ty = py + ddy[context->dir];
 	int tx = px + ddx[context->dir];
@@ -3495,7 +3515,7 @@ bool effect_handler_SWARM(effect_handler_context_t *context)
 	while (num--) {
 		/* Aim at the target.  Hurt items on floor. */
 		if (project(-1, context->p2, ty, tx, dam, context->p1, flg, 0, 0,
-					context->obj))
+					duration, context->obj))
 			context->ident = true;
 	}
 
@@ -3512,7 +3532,9 @@ bool effect_handler_STAR(effect_handler_context_t *context)
 	int py = player->py;
 	int px = player->px;
 	int dam = effect_calculate_value(context, true);
+	int duration = effect_calculate_duration(dam, context->p4);
 	int i;
+
 
 	s16b ty, tx;
 
@@ -3528,7 +3550,8 @@ bool effect_handler_STAR(effect_handler_context_t *context)
 		tx = px + ddx_ddd[i];
 
 		/* Aim at the target */
-		if (project(-1, 0, ty, tx, dam, context->p1, flg, 0, 0, context->obj))
+		if (project(-1, 0, ty, tx, dam, context->p1, flg, 0, 0, 
+                    duration, context->obj))
 			context->ident = true;
 	}
 	return true;
@@ -3545,20 +3568,20 @@ bool effect_handler_STAR_BALL(effect_handler_context_t *context)
 	int py = player->py;
 	int px = player->px;
 	int dam = effect_calculate_value(context, true);
-	int i;
+	int duration = effect_calculate_duration(dam, context->p4);
 
 	s16b ty, tx;
 
 	int flg = PROJECT_STOP | PROJECT_THRU | PROJECT_GRID | PROJECT_ITEM | PROJECT_KILL;
 
-	for (i = 0; i < 8; i++) {
+	for (int i = 0; i < 8; i++) {
 		/* Use the current direction */
 		ty = py + ddy_ddd[i];
 		tx = px + ddx_ddd[i];
 
 		/* Aim at the target, explode */
 		if (project(-1, context->p2, ty, tx, dam, context->p1, flg, 0, 0,
-					context->obj))
+					duration, context->obj))
 			context->ident = true;
 	}
 	return true;
@@ -3573,7 +3596,9 @@ bool effect_handler_BOLT(effect_handler_context_t *context)
 {
 	int dam = effect_calculate_value(context, true);
 	int flg = PROJECT_STOP | PROJECT_KILL;
-	(void) project_aimed(context->p1, context->dir, dam, flg, context->obj);
+	int duration = effect_calculate_duration(dam, context->p4);
+
+	(void) project_aimed(context->p1, context->dir, dam, duration, flg, context->obj);
 	if (!player->timed[TMD_BLIND])
 		context->ident = true;
 	return true;
@@ -3588,7 +3613,9 @@ bool effect_handler_BEAM(effect_handler_context_t *context)
 {
 	int dam = effect_calculate_value(context, true);
 	int flg = PROJECT_BEAM | PROJECT_KILL;
-	(void) project_aimed(context->p1, context->dir, dam, flg, context->obj);
+	int duration = effect_calculate_duration(dam, context->p4);
+
+	(void) project_aimed(context->p1, context->dir, dam, duration, flg, context->obj);
 	if (!player->timed[TMD_BLIND])
 		context->ident = true;
 	return true;
@@ -3623,7 +3650,9 @@ bool effect_handler_LINE(effect_handler_context_t *context)
 {
 	int dam = effect_calculate_value(context, true);
 	int flg = PROJECT_BEAM | PROJECT_GRID | PROJECT_KILL;
-	if (project_aimed(context->p1, context->dir, dam, flg, context->obj))
+	int duration = effect_calculate_duration(dam, context->p4);
+    
+	if (project_aimed(context->p1, context->dir, dam, duration, flg, context->obj))
 		context->ident = true;
 	return true;
 }
@@ -3635,7 +3664,9 @@ bool effect_handler_LINE(effect_handler_context_t *context)
 bool effect_handler_ALTER(effect_handler_context_t *context)
 {
 	int flg = PROJECT_BEAM | PROJECT_GRID | PROJECT_ITEM;
-	if (project_aimed(context->p1, context->dir, 0, flg, context->obj))
+	int duration = effect_calculate_duration(0, context->p4);
+
+	if (project_aimed(context->p1, context->dir, 0, duration, flg, context->obj))
 		context->ident = true;
 	return true;
 }
@@ -3650,7 +3681,9 @@ bool effect_handler_BOLT_STATUS(effect_handler_context_t *context)
 {
 	int dam = effect_calculate_value(context, true);
 	int flg = PROJECT_STOP | PROJECT_KILL;
-	if (project_aimed(context->p1, context->dir, dam, flg, context->obj))
+	int duration = effect_calculate_duration(dam, context->p4);
+
+	if (project_aimed(context->p1, context->dir, dam, duration, flg, context->obj))
 		context->ident = true;
 	return true;
 }
@@ -3665,7 +3698,9 @@ bool effect_handler_BOLT_STATUS_DAM(effect_handler_context_t *context)
 {
 	int dam = effect_calculate_value(context, true);
 	int flg = PROJECT_STOP | PROJECT_KILL;
-	if (project_aimed(context->p1, context->dir, dam, flg, context->obj))
+	int duration = effect_calculate_duration(dam, context->p4);
+
+	if (project_aimed(context->p1, context->dir, dam, duration, flg, context->obj))
 		context->ident = true;
 	return true;
 }
@@ -3680,8 +3715,10 @@ bool effect_handler_BOLT_AWARE(effect_handler_context_t *context)
 {
 	int dam = effect_calculate_value(context, true);
 	int flg = PROJECT_STOP | PROJECT_KILL;
+	int duration = effect_calculate_duration(dam, context->p4);
+
 	if (context->aware) flg |= PROJECT_AWARE;
-	if (project_aimed(context->p1, context->dir, dam, flg, context->obj))
+	if (project_aimed(context->p1, context->dir, dam, duration, flg, context->obj))
 		context->ident = true;
 	return true;
 }
@@ -3692,7 +3729,9 @@ bool effect_handler_BOLT_AWARE(effect_handler_context_t *context)
 bool effect_handler_TOUCH(effect_handler_context_t *context)
 {
 	int dam = effect_calculate_value(context, true);
-	if (project_touch(dam, context->p1, false, context->obj))
+	int duration = effect_calculate_duration(dam, context->p4);
+    
+	if (project_touch(dam, duration, context->p1, false, context->obj))
 		context->ident = true;
 	return true;
 }
@@ -3704,7 +3743,9 @@ bool effect_handler_TOUCH(effect_handler_context_t *context)
 bool effect_handler_TOUCH_AWARE(effect_handler_context_t *context)
 {
 	int dam = effect_calculate_value(context, true);
-	if (project_touch(dam, context->p1, context->aware, context->obj))
+	int duration = effect_calculate_duration(dam, context->p4);
+
+	if (project_touch(dam, duration, context->p1, context->aware, context->obj))
 		context->ident = true;
 	return true;
 }
@@ -3933,7 +3974,7 @@ bool effect_handler_BIZARRE(effect_handler_context_t *context)
 			msg("You are surrounded by a powerful aura.");
 
 			/* Dispel monsters */
-			effect_simple(EF_PROJECT_LOS, "1000", GF_DISP_ALL, 0, 0, NULL);
+			effect_simple(EF_PROJECT_LOS, "1000", NULL, 1, GF_DISP_ALL);
 
 			return true;
 		}
@@ -3955,7 +3996,7 @@ bool effect_handler_BIZARRE(effect_handler_context_t *context)
 			}
 
 			/* Aim at the target, explode */
-			if (project(-1, 3, ty, tx, 300, GF_MANA, flg, 0, 0, context->obj))
+			if (project(-1, 3, ty, tx, 300, GF_MANA, flg, 0, 0, 0, context->obj))
 
 			return true;
 		}
@@ -3975,7 +4016,7 @@ bool effect_handler_BIZARRE(effect_handler_context_t *context)
 				target_get(&tx, &ty);
 
 			/* Aim at the target, do NOT explode */
-			return (project(-1, 0, ty, tx, 250, GF_MANA, flg, 0, 0,
+			return (project(-1, 0, ty, tx, 250, GF_MANA, flg, 0, 0, 0,
 							context->obj));
 
 			return true;
@@ -3998,7 +4039,7 @@ bool effect_handler_WONDER(effect_handler_context_t *context)
 {
 	int plev = player->lev;
 	int die = effect_calculate_value(context, false);
-	int p1 = 0, p2 = 0, p3 = 0;
+	int p1 = 0, p2 = 0, p3 = 0, p4 = 0;
 	int beam = context->beam;
 	effect_handler_f handler = NULL;
 	random_value value = { 0, 0, 0, 0 };
@@ -4117,7 +4158,7 @@ bool effect_handler_WONDER(effect_handler_context_t *context)
 			beam,
 			context->boost,
 			value,
-			p1, p2, p3,
+			p1, p2, p3, p4,
 			ident
 		};
 
@@ -4126,10 +4167,10 @@ bool effect_handler_WONDER(effect_handler_context_t *context)
 	}
 
 	/* RARE */
-	effect_simple(EF_PROJECT_LOS, "150", GF_DISP_ALL, 0, 0, ident);
-	effect_simple(EF_PROJECT_LOS, "20", GF_OLD_SLOW, 0, 0, ident);
-	effect_simple(EF_PROJECT_LOS, "40", GF_OLD_SLEEP, 0, 0, ident);
-	effect_simple(EF_HEAL_HP, "300", 0, 0, 0, ident);
+	effect_simple(EF_PROJECT_LOS, "150", ident, 1, GF_DISP_ALL);
+	effect_simple(EF_PROJECT_LOS, "20", ident, 1, GF_OLD_SLOW);
+	effect_simple(EF_PROJECT_LOS, "40", ident, 1, GF_OLD_SLEEP);
+	effect_simple(EF_HEAL_HP, "300", ident, 0);
 	mem_free(ident);
 
 	return true;
@@ -4242,7 +4283,7 @@ bool effect_handler_TRAP_RUNE_TELEPORT(effect_handler_context_t *context)
 	char dist[5];
 	strnfmt(dist, sizeof(dist), "%d", radius);
 	msg("You hit a teleport trap!");
-	effect_simple(EF_TELEPORT, dist, 0, 1, 0, NULL);
+	effect_simple(EF_TELEPORT, dist, NULL, 2, 0, 1);
 	return true;
 }
 
@@ -4287,7 +4328,7 @@ bool effect_handler_TRAP_DART_LOSE_STR(effect_handler_context_t *context)
 	if (trap_check_hit(125)) {
 		msg("A small dart hits you!");
 		take_hit(player, damroll(1, 4), "a trap");
-		effect_simple(EF_DRAIN_STAT, "0", STAT_STR, 0, 0, NULL);
+		effect_simple(EF_DRAIN_STAT, "0", NULL, 1, STAT_STR);
 	} else {
 		msg("A small dart barely misses you.");
 	}
@@ -4299,7 +4340,7 @@ bool effect_handler_TRAP_DART_LOSE_DEX(effect_handler_context_t *context)
 	if (trap_check_hit(125)) {
 		msg("A small dart hits you!");
 		take_hit(player, damroll(1, 4), "a trap");
-		effect_simple(EF_DRAIN_STAT, "0", STAT_DEX, 0, 0, NULL);
+		effect_simple(EF_DRAIN_STAT, "0", NULL, 1, STAT_DEX);
 	} else {
 		msg("A small dart barely misses you.");
 	}
@@ -4311,7 +4352,7 @@ bool effect_handler_TRAP_DART_LOSE_CON(effect_handler_context_t *context)
 	if (trap_check_hit(125)) {
 		msg("A small dart hits you!");
 		take_hit(player, damroll(1, 4), "a trap");
-		effect_simple(EF_DRAIN_STAT, "0", STAT_CON, 0, 0, NULL);
+		effect_simple(EF_DRAIN_STAT, "0", NULL, 1, STAT_CON);
 	} else {
 		msg("A small dart barely misses you.");
 	}
@@ -4580,6 +4621,7 @@ bool effect_do(struct effect *effect, struct object *obj, bool *ident,
 				effect->params[0],
 				effect->params[1],
 				effect->params[2],
+				effect->params[3],
 				*ident,
 			};
 
@@ -4604,20 +4646,30 @@ bool effect_do(struct effect *effect, struct object *obj, bool *ident,
  * Calling with ident a valid pointer will (depending on effect) give success
  * information; ident = NULL will ignore this 
  */
-void effect_simple(int index, const char* dice_string, int p1, int p2, int p3, bool *ident)
+void effect_simple(int index, const char* dice_string, bool *ident, int p_count, ...)
 {
 	struct effect *effect = mem_zalloc(sizeof(*effect));
 	int dir = DIR_TARGET;
 	bool dummy_ident;
 
+	va_list vp;
+
 	/* Set all the values */
 	effect->index = index;
 	effect->dice = dice_new();
 	dice_parse_string(effect->dice, dice_string);
-	effect->params[0] = p1;
-	effect->params[1] = p2;
-	effect->params[2] = p3;
 
+	/* Load up to four parameters from the varargs */
+	va_start(vp, p_count);
+	for (int i = 0; i < p_count; i++)
+		effect->params[i] = va_arg(vp, int);
+
+	va_end(vp);
+	
+	/* Set the rest to 0 */
+	for (int i = p_count + 1; i <= 4; i++)
+		effect->params[i] = 0;
+		
 	/* Direction if needed */
 	if (effect_aim(effect))
 		get_aim_dir(&dir);

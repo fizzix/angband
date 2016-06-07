@@ -68,10 +68,10 @@ int mon_timed_name_to_idx(const char *name)
  *
  * Also marks the lore for any appropriate resists.
  */
-static bool mon_resist_effect(const struct monster *mon, int ef_idx, int timer, u16b flag)
+static bool mon_resist_effect(const struct monster *mon, int ef_idx, int power, u16b flag)
 {
 	struct mon_timed_effect *effect;
-	int resist_chance;
+	int success_chance;
 	struct monster_lore *lore;
 
 	assert(ef_idx >= 0 && ef_idx < MON_TMD_MAX);
@@ -129,20 +129,13 @@ static bool mon_resist_effect(const struct monster *mon, int ef_idx, int timer, 
 		return (true);
 	}
 
-	/* Calculate the chance of the monster making its saving throw. */
-	if (ef_idx == MON_TMD_SLEEP)
-		timer /= 25; /* Hack - sleep uses much bigger numbers */
+	success_chance = (power - mon->race->level) * 2 + 80;
 
-	if (flag & MON_TMD_MON_SOURCE)
-		resist_chance = mon->race->level;
-	else
-		resist_chance = mon->race->level + 40 - (timer / 2);
-
-	if (randint0(100) < resist_chance) return (true);
-
-	/* Uniques are doubly hard to affect */
+	/* Uniques get a +10 to level calc */
 	if (rf_has(mon->race->flags, RF_UNIQUE))
-		if (randint0(100) < resist_chance) return (true);
+		success_chance = success_chance - 20;
+
+	if (randint0(100) > success_chance) return (true);
 
 	return (false);
 }
@@ -160,8 +153,8 @@ static bool mon_resist_effect(const struct monster *mon, int ef_idx, int timer, 
  * Returns true if the monster was affected.
  * Return false if the monster was unaffected.
  */
-static bool mon_set_timed(struct monster *mon, int ef_idx, int timer,
-						  u16b flag, bool id)
+static bool mon_set_timed(struct monster *mon, int ef_idx, int power, 
+              int timer, u16b flag, bool id)
 {
 	bool check_resist = false;
 	bool resisted = false;
@@ -200,7 +193,7 @@ static bool mon_set_timed(struct monster *mon, int ef_idx, int timer,
 
 	/* Determine if the monster resisted or not, if appropriate */
 	if (check_resist)
-		resisted = mon_resist_effect(mon, ef_idx, timer, flag);
+		resisted = mon_resist_effect(mon, ef_idx, power, flag);
 
 	if (resisted)
 		m_note = MON_MSG_UNAFFECTED;
@@ -237,8 +230,8 @@ static bool mon_set_timed(struct monster *mon, int ef_idx, int timer,
  *
  * Returns true if the monster's timer changed.
  */
-bool mon_inc_timed(struct monster *mon, int ef_idx, int timer, u16b flag,
-				   bool id)
+bool mon_inc_timed(struct monster *mon, int ef_idx, int power, int timer, 
+           u16b flag, bool id)
 {
 	struct mon_timed_effect *effect;
 
@@ -261,7 +254,7 @@ bool mon_inc_timed(struct monster *mon, int ef_idx, int timer, u16b flag,
 	if (timer > effect->max_timer)
 		timer = effect->max_timer;
 
-	return mon_set_timed(mon, ef_idx, timer, flag, id);
+	return mon_set_timed(mon, ef_idx, power, timer, flag, id);
 }
 
 /**
@@ -287,7 +280,7 @@ bool mon_dec_timed(struct monster *mon, int ef_idx, int timer, u16b flag,
 	if (timer < 0)
 		timer = 0;
 
-	return mon_set_timed(mon, ef_idx, timer, flag, id);
+	return mon_set_timed(mon, ef_idx, 0, timer, flag, id);
 }
 
 /**
@@ -304,6 +297,6 @@ bool mon_clear_timed(struct monster *mon, int ef_idx, u16b flag, bool id)
 	/* Clearing never fails */
 	flag |= MON_TMD_FLG_NOFAIL;
 
-	return mon_set_timed(mon, ef_idx, 0, flag, id);
+	return mon_set_timed(mon, ef_idx, 0, 0, flag, id);
 }
 

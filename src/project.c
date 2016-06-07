@@ -535,6 +535,9 @@ const char *gf_idx_to_name(int type)
  *   source diameters ranging up from 20, which allows the spell designer to
  *   fine-tune how quickly a breath loses strength outwards from the breather.
  *
+ * duration controls how long a status effect should be applied for, and 
+ *   eventually how long an area effect spell should remain active for.
+ *
  *
  * Implementation notes:
  *
@@ -580,7 +583,7 @@ const char *gf_idx_to_name(int type)
  * and "update_view()" and "update_monsters()" need to be called.
  */
 bool project(int who, int rad, int y, int x, int dam, int typ, int flg,
-			 int degrees_of_arc, byte diameter_of_source,
+			 int degrees_of_arc, byte diameter_of_source, int duration,
 			 const struct object *obj)
 {
 	int i, j, k, dist_from_centre;

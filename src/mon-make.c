@@ -1589,7 +1589,7 @@ bool mon_take_hit(struct monster *mon, int dam, bool *fear, const char *note)
 			/* Hack -- note fear */
 			(*fear) = true;
 
-			mon_inc_timed(mon, MON_TMD_FEAR, timer,
+			mon_inc_timed(mon, MON_TMD_FEAR, 50, timer,
 					MON_TMD_FLG_NOMESSAGE | MON_TMD_FLG_NOFAIL, false);
 		}
 	}

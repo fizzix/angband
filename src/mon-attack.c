@@ -658,7 +658,7 @@ bool make_attack_normal(struct monster *mon, struct player *p)
 		char dice[5];
 		msg("There is a puff of smoke!");
 		strnfmt(dice, sizeof(dice), "%d", z_info->max_sight * 2 + 5);
-		effect_simple(EF_TELEPORT, dice, 0, 0, 0, NULL);
+		effect_simple(EF_TELEPORT, dice, NULL, 0);
 	}
 
 	/* Always notice cause of death */

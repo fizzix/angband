@@ -195,7 +195,7 @@ dice:2d$S
 expr:S:PLAYER_LEVEL:/ 2
 desc:Lights up all squares in a level-dependant area, and hurts
 desc: all light-sensitive monsters in the area of effect.
-desc:  If you are in a room, the entire room will be lit up as well.
+desc:  If you are in a room, the entire room will be lit up as well, homey.
 
 spell:Find Traps, Doors & Stairs:3:3:25:2
 effect:DETECT_TRAPS
@@ -216,6 +216,7 @@ book:magic book:[Conjurings and Tricks]:9:1
 
 spell:Confuse Monster:5:4:30:4
 effect:BOLT_AWARE:OLD_CONF
+param:0:0:2
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Attempts to confuse a single monster for a level-dependant duration.
@@ -237,6 +238,7 @@ desc:Neutralizes poison.
 
 spell:Sleep Monster:7:5:30:4
 effect:BOLT_AWARE:OLD_SLEEP
+param:0:0:1
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Attempts to put to sleep a single monster.
@@ -331,6 +333,7 @@ desc:  The chance to get a beam goes up with your character level.
 
 spell:Slow Monster:17:9:50:7
 effect:BOLT_STATUS:OLD_SLOW
+param:0:0:2
 dice:20
 desc:Attempts to slow a single monster.
 desc:  Uniques are not affected.
@@ -539,6 +542,7 @@ desc:  This spell has no effect when used in the town.
 
 spell:Bedlam:25:15:60:24
 effect:BALL:OLD_CONF:4
+param:0:0:2
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Shoots a radius-4 confusion ball that doesn't cause physical
@@ -683,6 +687,7 @@ book:prayer book:[Words of Wisdom]:7:2
 
 spell:Scare Monster:5:4:29:3
 effect:BOLT_AWARE:TURN_ALL
+param:0:0:1
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Attempts to scare a single monster for a level-dependant duration.
@@ -803,6 +808,7 @@ desc: cut damage, poison and amnesia.
 
 spell:Turn Undead:15:12:50:5
 effect:PROJECT_LOS_AWARE:TURN_UNDEAD
+param:0:0:1
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Attempts to scare each undead monster within line of sight,
@@ -1147,6 +1153,7 @@ book:magic book:[Conjurings and Tricks]:7:1
 
 spell:Confuse Monster:15:6:75:1
 effect:BOLT_AWARE:OLD_CONF
+param:0:0:2
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Attempts to confuse a single monster for a level-dependant duration.
@@ -1162,6 +1169,7 @@ desc:Neutralizes poison.
 
 spell:Sleep Monster:19:8:85:1
 effect:BOLT_AWARE:OLD_SLEEP
+param:0:0:1
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Attempts to put to sleep a single monster.
@@ -1222,6 +1230,7 @@ desc:Detects all monsters in the immediate area, for one turn only.
 
 spell:Slow Monster:28:20:70:2
 effect:BOLT_STATUS:OLD_SLOW
+param:0:0:3
 dice:20
 desc:Attempts to slow a single monster.
 desc:  Uniques are not affected.
@@ -1489,6 +1498,7 @@ book:magic book:[Conjurings and Tricks]:9:1
 
 spell:Confuse Monster:7:6:40:2
 effect:BOLT_AWARE:OLD_CONF
+param:0:0:2
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Attempts to confuse a single monster for a level-dependant duration.
@@ -1510,6 +1520,7 @@ desc:Neutralizes poison.
 
 spell:Sleep Monster:11:8:40:3
 effect:BOLT_AWARE:OLD_SLEEP
+param:0:0:1
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Attempts to put to sleep a single monster.
@@ -1604,6 +1615,7 @@ desc:  The chance to get a beam goes up with your character level.
 
 spell:Slow Monster:25:21:65:3
 effect:BOLT_STATUS:OLD_SLOW
+param:0:0:3
 dice:20
 desc:Attempts to slow a single monster.
 desc:  Uniques are not affected.
@@ -1631,6 +1643,7 @@ desc:Hastes you (+10 to speed) for a level-dependant duration.
 
 spell:Mass Sleep:23:20:60:4
 effect:PROJECT_LOS:OLD_SLEEP
+param:0:0:1
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Attempts to put to sleep each monster within line of sight.
@@ -1822,6 +1835,7 @@ desc:  This spell has no effect when used in the town.
 
 spell:Bedlam:32:30:70:12
 effect:BALL:OLD_CONF:4
+param:0:0:3
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Shoots a radius-4 confusion ball that doesn't cause physical
@@ -1927,6 +1941,7 @@ book:prayer book:[Words of Wisdom]:7:2
 
 spell:Scare Monster:9:7:40:3
 effect:BOLT_AWARE:TURN_ALL
+param:0:0:1
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Attempts to scare a single monster for a level-dependant duration.
@@ -1954,6 +1969,7 @@ desc: turns.
 
 spell:Sanctuary:11:10:45:3
 effect:TOUCH_AWARE:OLD_SLEEP
+param:0:0:1
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Attempts to put to sleep each monster directly adjacent to you.
@@ -2049,6 +2065,7 @@ desc: cut damage, poison and amnesia.
 
 spell:Turn Undead:27:21:50:3
 effect:PROJECT_LOS_AWARE:TURN_UNDEAD
+param:0:0:1
 dice:$B
 expr:B:PLAYER_LEVEL:+ 0
 desc:Attempts to scare each undead monster within line of sight,

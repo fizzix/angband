@@ -252,16 +252,16 @@ static void project_player_handler_NEXUS(project_player_handler_context_t *conte
 		}
 		project_player_swap_stats();
 	} else if (one_in_(3)) { /* Teleport to */
-		effect_simple(EF_TELEPORT_TO, "0", mon->fy, mon->fx, 0, NULL);
+		effect_simple(EF_TELEPORT_TO, "0", NULL, 2, mon->fy, mon->fx);
 	} else if (one_in_(4)) { /* Teleport level */
 		if (randint0(100) < player->state.skills[SKILL_SAVE]) {
 			msg("You avoid the effect!");
 			return;
 		}
-		effect_simple(EF_TELEPORT_LEVEL, "0", 0, 0, 0, NULL);
+		effect_simple(EF_TELEPORT_LEVEL, "0", NULL, 0);
 	} else { /* Teleport */
 		const char *miles = "200";
-		effect_simple(EF_TELEPORT, miles, 0, 1, 0, NULL);
+		effect_simple(EF_TELEPORT, miles, NULL, 2, 0, 1);
 	}
 }
 
@@ -309,7 +309,7 @@ static void project_player_handler_DISEN(project_player_handler_context_t *conte
 	}
 
 	/* Disenchant gear */
-	effect_simple(EF_DISENCHANT, "0", 0, 0, 0, NULL);
+	effect_simple(EF_DISENCHANT, "0", NULL, 0);
 }
 
 static void project_player_handler_WATER(project_player_handler_context_t *context)
@@ -343,7 +343,7 @@ static void project_player_handler_GRAVITY(project_player_handler_context_t *con
 	/* Blink */
 	if (randint1(127) > player->lev) {
 		const char *five = "5";
-		effect_simple(EF_TELEPORT, five, 0, 1, 0, NULL);
+		effect_simple(EF_TELEPORT, five, NULL, 2, 0, 1);
 	}
 
 	/* Slow */
@@ -372,7 +372,7 @@ static void project_player_handler_FORCE(project_player_handler_context_t *conte
 
 	/* Thrust player away. */
 	strnfmt(grids_away, sizeof(grids_away), "%d", 3 + context->dam / 20);
-	effect_simple(EF_THRUST_AWAY, grids_away, context->y, context->x, 0, NULL);
+	effect_simple(EF_THRUST_AWAY, grids_away, NULL, 2, context->y, context->x);
 }
 
 static void project_player_handler_TIME(project_player_handler_context_t *context)

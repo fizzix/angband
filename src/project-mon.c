@@ -524,7 +524,7 @@ static void project_monster_handler_FORCE(project_monster_handler_context_t *con
 
 	/* Thrust monster away. */
 	strnfmt(grids_away, sizeof(grids_away), "%d", 3 + context->dam / 20);
-	effect_simple(EF_THRUST_AWAY, grids_away, context->y, context->x, 0, NULL);
+	effect_simple(EF_THRUST_AWAY, grids_away, NULL, 2, context->y, context->x);
 }
 
 /* Time -- breathers resist */
@@ -670,7 +670,7 @@ static void project_monster_handler_OLD_CLONE(project_monster_handler_context_t 
 	context->mon->hp = context->mon->maxhp;
 
 	/* Speed up */
-	mon_inc_timed(context->mon, MON_TMD_FAST, 50, MON_TMD_FLG_NOTIFY, 
+	mon_inc_timed(context->mon, MON_TMD_FAST, 50, 10, MON_TMD_FLG_NOTIFY, 
 				  context->id);
 
 	/* Attempt to clone. */
@@ -957,7 +957,7 @@ static void project_m_apply_side_effects(project_monster_handler_context_t *cont
 	} else if (context->teleport_distance > 0) {
 		char dice[5];
 		strnfmt(dice, sizeof(dice), "%d", context->teleport_distance);
-		effect_simple(EF_TELEPORT, dice, context->y, context->x, 0, NULL);
+		effect_simple(EF_TELEPORT, dice, NULL, 2, context->y, context->x);
 	} else {
 		int i;
 
@@ -980,7 +980,7 @@ static void project_m_apply_side_effects(project_monster_handler_context_t *cont
 
 		for (i = 0; i < MON_TMD_MAX; i++) {
 			if (context->mon_timed[i] > 0)
-				context->obvious = mon_inc_timed(mon, i, context->mon_timed[i], context->flag | MON_TMD_FLG_NOTIFY, context->id);
+				context->obvious = mon_inc_timed(mon, i, context->mon_timed[i], 10, context->flag | MON_TMD_FLG_NOTIFY, context->id);
 		}
 	}
 }

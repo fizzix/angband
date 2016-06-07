@@ -230,7 +230,7 @@ static void blow_side_effects(struct player *p, struct monster *mon)
 		p->confusing = false;
 		msg("Your hands stop glowing.");
 
-		mon_inc_timed(mon, MON_TMD_CONF, (10 + randint0(p->lev) / 10),
+		mon_inc_timed(mon, MON_TMD_CONF, (10 + randint0(p->lev) / 10), 10,
 					  MON_TMD_FLG_NOTIFY, false);
 	}
 }
@@ -242,7 +242,7 @@ static bool blow_after_effects(int y, int x, bool quake)
 {
 	/* Apply earthquake brand */
 	if (quake) {
-		effect_simple(EF_EARTHQUAKE, "0", 0, 10, 0, NULL);
+		effect_simple(EF_EARTHQUAKE, "0", NULL, 2, 0, 10);
 
 		/* Monster may be dead or moved */
 		if (!square_monster(cave, y, x))

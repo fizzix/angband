@@ -277,7 +277,7 @@ int summon_specific(int y1, int x1, int lev, int type, bool delay, bool call)
 	if (delay) {
 		mon->energy = 0;
 		if (mon->race->speed > player->state.speed)
-			mon_inc_timed(mon, MON_TMD_SLOW, 1,
+			mon_inc_timed(mon, MON_TMD_SLOW, 1, 10,
 				MON_TMD_FLG_NOMESSAGE, false);
 	}
 
