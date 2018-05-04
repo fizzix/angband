@@ -1212,7 +1212,7 @@ desc:Slows down a monster.
 
 book:magic book:[Sorcery and Evocations]:3:1
 
-spell:Teleport Other:31:25:70:3
+spell:Teleport Other:38:25:70:3
 effect:BOLT_STATUS:AWAY_ALL
 dice:$B
 expr:B:MAX_SIGHT:* 5
@@ -1593,13 +1593,6 @@ effect:BALL:COLD:2
 dice:$B
 expr:B:PLAYER_LEVEL:+ 30
 desc:Shoots a radius-2 frost ball.
-
-spell:Teleport Other:31:25:70:3
-effect:BOLT_STATUS:AWAY_ALL
-dice:$B
-expr:B:MAX_SIGHT:* 5
-desc:Produces a bolt that teleports the first monster in its path
-desc: up to 100 squares away.
 
 spell:Haste Self:33:25:75:4
 effect:TIMED_INC:FAST:5
@@ -2066,13 +2059,6 @@ effect:TELEPORT
 dice:$B
 expr:B:PLAYER_LEVEL:* 8
 desc:Teleports you randomly within the current level.
-
-spell:Teleport Other:25:25:80:12
-effect:BOLT_STATUS:AWAY_ALL
-dice:$B
-expr:B:MAX_SIGHT:* 5
-desc:Produces a bolt that teleports the first monster in its path
-desc: up to 100 squares away.
 
 spell:Teleport Level:35:50:75:115
 effect:TELEPORT_LEVEL
